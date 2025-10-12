@@ -1,0 +1,22 @@
+{
+  "name": "@ap2/rails",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ap2/domain": "*",
+    "@ap2/receipts": "*",
+    "@noble/curves": "^1.3.0",
+    "stripe": "^14.11.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.3"
+  }
+}

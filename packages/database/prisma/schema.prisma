@@ -1,0 +1,159 @@
+// AP2-Native Agent Payment Gateway - Prisma Schema
+// Database: PostgreSQL 14+
+// ORM: Prisma 5.x
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Agent {
+  id         String   @id @default(cuid())
+  name       String
+  public_key String   @unique
+  status     String   @default("active")
+  risk_tier  String   @default("LOW")
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  policies        Policy[]
+  purchase_intents PurchaseIntent[]
+  receipts        Receipt[]
+
+  @@index([status])
+  @@index([risk_tier])
+  @@map("agents")
+}
+
+model Policy {
+  id               String   @id @default(cuid())
+  agent_id         String
+  version          Int
+  vendor_allowlist Json
+  amount_cap       Int
+  daily_cap        Int
+  risk_tier        String   @default("LOW")
+  x402_enabled     Boolean  @default(true)
+  expires_at       DateTime
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  agent    Agent     @relation(fields: [agent_id], references: [id], onDelete: Cascade)
+  mandates Mandate[]
+
+  @@unique([agent_id, version])
+  @@index([agent_id, expires_at])
+  @@index([expires_at])
+  @@map("policies")
+}
+
+model PurchaseIntent {
+  id          String   @id @default(cuid())
+  agent_id    String
+  vendor      String
+  amount      Int
+  currency    String   @default("USD")
+  description String
+  metadata    Json     @default("{}")
+  status      String   @default("PENDING")
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  agent   Agent     @relation(fields: [agent_id], references: [id], onDelete: Cascade)
+  mandate Mandate?
+
+  @@index([agent_id, created_at])
+  @@index([status])
+  @@index([vendor])
+  @@map("purchase_intents")
+}
+
+model Mandate {
+  id         String   @id @default(cuid())
+  intent_id  String   @unique
+  policy_id  String
+  signature  String
+  issued_at  DateTime @default(now())
+  expires_at DateTime
+  status     String   @default("ACTIVE")
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  intent   PurchaseIntent @relation(fields: [intent_id], references: [id], onDelete: Cascade)
+  policy   Policy         @relation(fields: [policy_id], references: [id], onDelete: Restrict)
+  payments Payment[]
+
+  @@index([status, expires_at])
+  @@index([policy_id])
+  @@map("mandates")
+}
+
+model Payment {
+  id           String    @id @default(cuid())
+  mandate_id   String
+  provider     String
+  provider_ref String?
+  amount       Int
+  currency     String    @default("USD")
+  status       String    @default("INITIATED")
+  settled_at   DateTime?
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
+
+  mandate Mandate  @relation(fields: [mandate_id], references: [id], onDelete: Restrict)
+  receipt Receipt?
+
+  @@index([mandate_id])
+  @@index([provider, status])
+  @@index([status, created_at])
+  @@map("payments")
+}
+
+model Receipt {
+  id          String   @id @default(cuid())
+  payment_id  String   @unique
+  agent_id    String
+  hash        String   @unique
+  prev_hash   String?
+  chain_index Int
+  created_at  DateTime @default(now())
+
+  payment Payment @relation(fields: [payment_id], references: [id], onDelete: Restrict)
+  agent   Agent   @relation(fields: [agent_id], references: [id], onDelete: Cascade)
+
+  @@index([agent_id, chain_index])
+  @@index([agent_id, created_at])
+  @@index([prev_hash])
+  @@map("receipts")
+}
+
+model Idempotency {
+  id          String   @id @default(cuid())
+  route       String
+  key         String
+  payload     Json
+  status_code Int
+  response    Json     @default("{}")
+  created_at  DateTime @default(now())
+
+  @@unique([route, key])
+  @@index([created_at])
+  @@map("idempotency")
+}
+
+model VendorX402Endpoint {
+  id         String   @id @default(cuid())
+  vendor     String   @unique
+  endpoint   String
+  public_key String
+  enabled    Boolean  @default(true)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([vendor, enabled])
+  @@map("vendor_x402_endpoints")
+}

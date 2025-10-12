@@ -1,0 +1,32 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "lib": ["ES2022"],
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "allowJs": false,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "dist",
+    "baseUrl": ".",
+    "paths": {
+      "@ap2/domain": ["./packages/domain/src"],
+      "@ap2/database": ["./packages/database/src"],
+      "@ap2/rails": ["./packages/rails/src"],
+      "@ap2/receipts": ["./packages/receipts/src"]
+    }
+  },
+  "include": ["apps/**/*", "packages/**/*", "tests/**/*"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts"]
+}
