@@ -18,6 +18,7 @@
     "format": "prettier --write .",
     "db:generate": "npm run generate --workspace=packages/database",
     "db:migrate": "npm run migrate:dev --workspace=packages/database",
+    "db:migrate:deploy": "npm run migrate:deploy --workspace=packages/database",
     "db:seed": "npm run seed --workspace=packages/database",
     "db:studio": "npm run studio --workspace=packages/database"
   },

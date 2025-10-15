@@ -8,6 +8,9 @@ export class StripeAdapter implements RailAdapter {
 
   constructor() {
     const env = getEnv();
+    if (!env.STRIPE_SECRET_KEY) {
+      throw new Error("STRIPE_SECRET_KEY is required for StripeAdapter");
+    }
     this.stripe = new Stripe(env.STRIPE_SECRET_KEY, {
       apiVersion: "2024-12-18.acacia",
       typescript: true,
@@ -66,6 +69,9 @@ export class StripeAdapter implements RailAdapter {
 
   verifyWebhook(payload: unknown, signature: string): boolean {
     const env = getEnv();
+    if (!env.STRIPE_WEBHOOK_SECRET) {
+      return false;
+    }
     try {
       this.stripe.webhooks.constructEvent(
         JSON.stringify(payload),

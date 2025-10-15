@@ -3,6 +3,7 @@ export interface PaymentResult {
   provider_ref?: string;
   error?: string;
   status: "settled" | "pending" | "failed";
+  metadata?: Record<string, unknown>;
 }
 
 export interface PaymentRequest {
@@ -15,7 +16,7 @@ export interface PaymentRequest {
 }
 
 export interface RailAdapter {
-  name: "stripe" | "x402";
+  name: "stripe" | "x402" | "cashfree";
   executePayment(request: PaymentRequest): Promise<PaymentResult>;
   verifyWebhook?(payload: unknown, signature: string): boolean;
 }

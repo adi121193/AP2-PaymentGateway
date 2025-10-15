@@ -2,6 +2,9 @@ import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import { errorHandler } from "./middleware/error-handler.js";
 import { purchaseIntentsRouter } from "./routes/purchase-intents.js";
+import { mandatesRouter } from "./routes/mandates.js";
+import { executeRouter } from "./routes/execute.js";
+import { receiptsRouter } from "./routes/receipts.js";
 import { logger, logRequest } from "./logger.js";
 import type { Env } from "@ap2/domain";
 
@@ -62,11 +65,11 @@ export function createApp(env: Env): express.Application {
 
   // API routes
   app.use("/purchase-intents", purchaseIntentsRouter);
+  app.use("/mandates", mandatesRouter);
+  app.use("/execute", executeRouter);
+  app.use("/receipts", receiptsRouter);
 
-  // TODO: Add more routes in Phase B2
-  // app.use("/mandates", mandatesRouter);
-  // app.use("/execute", executeRouter);
-  // app.use("/receipts", receiptsRouter);
+  // TODO: Add webhooks in Phase C
   // app.use("/webhooks", webhooksRouter);
 
   // 404 handler for unknown routes

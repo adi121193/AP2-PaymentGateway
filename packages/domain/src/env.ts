@@ -16,19 +16,41 @@ export const EnvSchema = z.object({
       }
     ),
 
-  // Stripe Configuration (Test Mode Only)
+  // Stripe Configuration (Test Mode Only) - Optional for now
   STRIPE_SECRET_KEY: z
     .string()
     .min(1)
     .refine((key) => key.startsWith("sk_test_"), {
       message: "STRIPE_SECRET_KEY must be a test key (sk_test_)",
-    }),
+    })
+    .optional(),
   STRIPE_WEBHOOK_SECRET: z
     .string()
     .min(1)
     .refine((secret) => secret.startsWith("whsec_"), {
       message: "STRIPE_WEBHOOK_SECRET must start with 'whsec_'",
-    }),
+    })
+    .optional(),
+
+  // Cashfree Configuration (Required)
+  CASHFREE_APP_ID: z
+    .string()
+    .min(1)
+    .refine(
+      (val) => val.startsWith("TEST") || val.startsWith("PROD"),
+      {
+        message: "CASHFREE_APP_ID must start with TEST or PROD",
+      }
+    ),
+  CASHFREE_SECRET_KEY: z
+    .string()
+    .min(1)
+    .refine(
+      (val) => val.startsWith("TEST") || val.startsWith("PROD"),
+      {
+        message: "CASHFREE_SECRET_KEY must start with TEST or PROD",
+      }
+    ),
 
   // Cryptographic Keys
   MANDATE_SIGN_KEY: z
