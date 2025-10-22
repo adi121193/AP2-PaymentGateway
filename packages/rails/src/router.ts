@@ -76,10 +76,15 @@ export class RailRouter {
     let result: PaymentResult;
 
     if (decision.rail === "x402" && context.vendor_x402_config) {
-      result = await this.x402Adapter.executePayment(
-        request,
-        context.vendor_x402_config
-      );
+      // Pass vendor config via metadata for x402
+      const x402Request: PaymentRequest = {
+        ...request,
+        metadata: {
+          ...request.metadata,
+          x402_vendor_config: context.vendor_x402_config,
+        },
+      };
+      result = await this.x402Adapter.executePayment(x402Request);
     } else {
       result = await this.stripeAdapter.executePayment(request);
     }

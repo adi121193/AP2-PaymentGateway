@@ -7,19 +7,27 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "generate": "prisma generate",
-    "migrate:dev": "prisma migrate dev",
-    "migrate:deploy": "prisma migrate deploy",
-    "studio": "prisma studio",
-    "seed": "tsx prisma/seed.ts",
+    "generate": "npx dotenv-cli -e ../../.env -- prisma generate",
+    "migrate:dev": "npx dotenv-cli -e ../../.env -- prisma migrate dev",
+    "migrate:deploy": "npx dotenv-cli -e ../../.env -- prisma migrate deploy",
+    "db:push": "npx dotenv-cli -e ../../.env -- prisma db push",
+    "studio": "npx dotenv-cli -e ../../.env -- prisma studio",
+    "seed": "npx dotenv-cli -e ../../.env -- tsx prisma/seed.ts",
+    "verify": "npx dotenv-cli -e ../../.env -- tsx prisma/verify-seed.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@ap2/domain": "*",
-    "@prisma/client": "^5.8.0"
+    "@aws-sdk/client-s3": "^3.914.0",
+    "@aws-sdk/s3-request-presigner": "^3.914.0",
+    "@prisma/client": "^5.8.0",
+    "multer": "^2.0.2"
   },
   "devDependencies": {
+    "@types/multer": "^2.0.0",
     "@types/node": "^20.10.0",
+    "dotenv": "^17.2.3",
+    "dotenv-cli": "^10.0.0",
     "prisma": "^5.8.0",
     "tsx": "^4.7.0",
     "typescript": "^5.3.3"

@@ -1,0 +1,446 @@
+// ===================================================================
+// FrameOS Agent Runtime - Database Schema Extensions (Phase 1)
+// ===================================================================
+//
+// This file contains new models for the Agent Marketplace (A-Layer)
+// and Orchestration Engine (B-Layer).
+//
+// To integrate with existing schema:
+// 1. Copy these models into packages/database/prisma/schema.prisma
+// 2. Run: npx prisma migrate dev --name add-agent-runtime
+// 3. Run: npx prisma generate
+//
+// Relationships with existing C-Layer models:
+// - AgentExecution.user_id → Agent.id
+// - AgentExecution.purchase_intent_id → PurchaseIntent.id
+// - AgentExecution.mandate_id → Mandate.id
+// - AgentExecution.payment_id → Payment.id
+//
+// ===================================================================
+
+// -------------------------------------------------------------------
+// Developer Model
+// -------------------------------------------------------------------
+// Developers are users who publish agents to the marketplace.
+// They earn 70% of payment revenue from their agents.
+//
+// Fields:
+// - id: Unique developer identifier (cuid)
+// - email: Email address (unique, used for login)
+// - name: Full name
+// - company: Optional company name
+// - password_hash: bcrypt-hashed password (cost factor 12)
+// - status: Account status (active, suspended, banned)
+// - verified_email: Whether email is verified
+// - stripe_account_id: Stripe Connect account for payouts (Phase 2)
+// - total_revenue: Lifetime revenue earned (denormalized for performance)
+// - created_at: Account creation timestamp
+// - updated_at: Last update timestamp
+//
+// Relationships:
+// - agents: One-to-many (developer can publish multiple agents)
+// - revenue: One-to-many (revenue records per execution)
+//
+// Indexes:
+// - email (unique) - For login queries
+// - status - For filtering active developers
+// -------------------------------------------------------------------
+model Developer {
+  id                String   @id @default(cuid())
+  email             String   @unique
+  name              String
+  company           String?
+  password_hash     String
+  status            String   @default("active") // active, suspended, banned
+  verified_email    Boolean  @default(false)
+  stripe_account_id String?  // For payouts (Phase 2)
+  total_revenue     Int      @default(0) // In minor units (paise)
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  agents  AgentDefinition[]
+  revenue DeveloperRevenue[]
+
+  @@index([email])
+  @@index([status])
+  @@map("developers")
+}
+
+// -------------------------------------------------------------------
+// AgentDefinition Model
+// -------------------------------------------------------------------
+// Represents an agent in the marketplace (metadata + current version).
+// The actual code is stored in S3 (versioned).
+//
+// Fields:
+// - id: Unique agent identifier
+// - developer_id: Foreign key to Developer
+// - name: Display name (e.g., "LinkedIn Outreach Agent")
+// - slug: URL-friendly identifier (e.g., "linkedin-outreach-agent")
+// - description: Short description (max 500 chars)
+// - long_description: Markdown-formatted full description
+// - icon_url: URL to agent icon/logo
+// - category: Marketplace category (automation, data_enrichment, etc.)
+// - pricing_model: How agent is priced (per_execution, subscription, etc.)
+// - price_amount: Price in minor units (paise)
+// - price_currency: Currency code (ISO 4217)
+// - current_version: Latest semantic version (e.g., "1.2.3")
+// - tags: JSON array of tags (["linkedin", "outreach"])
+// - capabilities: JSON array of required capabilities (["http_request"])
+// - total_executions: Denormalized counter for performance
+// - success_rate: Denormalized success rate (0.0 - 1.0)
+// - avg_duration_ms: Average execution time (milliseconds)
+// - rating: User rating (0.0 - 5.0)
+// - review_count: Number of reviews
+// - status: Publishing status (pending_review, published, deprecated, banned)
+//
+// Relationships:
+// - developer: Many-to-one (multiple agents per developer)
+// - versions: One-to-many (each agent has multiple versions)
+// - deployments: One-to-many (users deploy agents)
+// - executions: One-to-many (execution history)
+//
+// Indexes:
+// - developer_id - For developer dashboard queries
+// - status - For marketplace filtering
+// - category - For category browsing
+// - slug (unique) - For URL lookups
+// -------------------------------------------------------------------
+model AgentDefinition {
+  id                String   @id @default(cuid())
+  developer_id      String
+  name              String
+  slug              String   @unique
+  description       String
+  long_description  String?  @db.Text
+  icon_url          String?
+  category          String
+
+  // Pricing
+  pricing_model     String
+  price_amount      Int
+  price_currency    String   @default("INR")
+
+  // Versioning
+  current_version   String
+
+  // Metadata
+  tags              Json     @default("[]")
+  capabilities      Json     @default("[]")
+
+  // Stats (denormalized for performance)
+  total_executions  Int      @default(0)
+  success_rate      Float    @default(0.0)
+  avg_duration_ms   Int      @default(0)
+  rating            Float    @default(0.0)
+  review_count      Int      @default(0)
+
+  // Status
+  status            String   @default("pending_review")
+
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  developer   Developer         @relation(fields: [developer_id], references: [id], onDelete: Cascade)
+  versions    AgentVersion[]
+  deployments AgentDeployment[]
+  executions  AgentExecution[]
+
+  @@index([developer_id])
+  @@index([status])
+  @@index([category])
+  @@index([slug])
+  @@map("agent_definitions")
+}
+
+// -------------------------------------------------------------------
+// AgentVersion Model
+// -------------------------------------------------------------------
+// Stores each version of an agent (code + manifest).
+// Enables versioning and rollback.
+//
+// Fields:
+// - id: Unique version identifier
+// - agent_id: Foreign key to AgentDefinition
+// - version: Semantic version string (e.g., "1.2.3")
+// - manifest: Full manifest JSON (from agent-manifest.ts)
+// - code_s3_key: S3 key for code tarball (e.g., "agents/agt_abc/v1.2.3.tar.gz")
+// - code_hash: SHA256 hash of code tarball (for integrity verification)
+// - runtime_language: Programming language (nodejs, python, go, rust)
+// - runtime_version: Language version (e.g., "20" for Node.js)
+// - entrypoint: Entry file (e.g., "index.js")
+// - timeout_ms: Execution timeout in milliseconds (max 300000 = 5 min)
+// - memory_mb: Memory limit in megabytes (max 2048)
+// - cpu_cores: CPU cores allocated (max 2.0)
+// - inputs_schema: JSON Schema for inputs
+// - outputs_schema: JSON Schema for outputs
+// - scan_passed: Whether code passed security scan
+// - scan_report: JSON with scan results (violations, warnings)
+// - status: Version status (active, deprecated)
+//
+// Relationships:
+// - agent: Many-to-one (multiple versions per agent)
+//
+// Indexes:
+// - (agent_id, version) (unique) - Enforce unique versions per agent
+// - (agent_id, status) - For fetching active versions
+// -------------------------------------------------------------------
+model AgentVersion {
+  id                String   @id @default(cuid())
+  agent_id          String
+  version           String
+  manifest          Json
+  code_s3_key       String
+  code_hash         String
+
+  // Runtime config
+  runtime_language  String   @default("nodejs")
+  runtime_version   String   @default("20")
+  entrypoint        String   @default("index.js")
+  timeout_ms        Int      @default(300000)
+  memory_mb         Int      @default(512)
+  cpu_cores         Float    @default(1.0)
+
+  // Inputs/Outputs schema
+  inputs_schema     Json     @default("[]")
+  outputs_schema    Json     @default("[]")
+
+  // Security scan results
+  scan_passed       Boolean  @default(false)
+  scan_report       Json?
+
+  status            String   @default("active")
+  created_at        DateTime @default(now())
+
+  agent AgentDefinition @relation(fields: [agent_id], references: [id], onDelete: Cascade)
+
+  @@unique([agent_id, version])
+  @@index([agent_id, status])
+  @@map("agent_versions")
+}
+
+// -------------------------------------------------------------------
+// AgentDeployment Model
+// -------------------------------------------------------------------
+// Represents a user's deployment of an agent.
+// Stores user-specific configuration (API keys, settings).
+//
+// Fields:
+// - id: Unique deployment identifier
+// - user_id: Foreign key to Agent (C-Layer user account)
+// - agent_id: Foreign key to AgentDefinition
+// - version: Which version is deployed (e.g., "1.2.3")
+// - config: JSON with user configuration (API keys, settings)
+//           Example: {"linkedin_session": "AQE...", "max_requests": 50}
+//           Sensitive values encrypted in database
+// - status: Deployment status (configured, paused, deleted)
+//
+// Relationships:
+// - agent: Many-to-one (multiple deployments per agent)
+// - executions: One-to-many (execution history for this deployment)
+//
+// Note: user_id references Agent.id from C-Layer (existing model)
+//
+// Indexes:
+// - user_id - For user dashboard queries
+// - agent_id - For agent usage analytics
+// -------------------------------------------------------------------
+model AgentDeployment {
+  id         String   @id @default(cuid())
+  user_id    String   // References Agent.id (C-Layer)
+  agent_id   String
+  version    String
+  config     Json     @default("{}")
+  status     String   @default("configured")
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  agent      AgentDefinition  @relation(fields: [agent_id], references: [id], onDelete: Cascade)
+  executions AgentExecution[]
+
+  @@index([user_id])
+  @@index([agent_id])
+  @@map("agent_deployments")
+}
+
+// -------------------------------------------------------------------
+// AgentExecution Model
+// -------------------------------------------------------------------
+// Execution log for each agent run.
+// Links to C-Layer payment models (PurchaseIntent, Mandate, Payment).
+//
+// Fields:
+// - id: Unique execution identifier
+// - deployment_id: Foreign key to AgentDeployment
+// - agent_id: Foreign key to AgentDefinition (denormalized for queries)
+// - user_id: Foreign key to Agent (C-Layer user account)
+// - purchase_intent_id: Links to PurchaseIntent (C-Layer)
+// - mandate_id: Links to Mandate (C-Layer)
+// - payment_id: Links to Payment (C-Layer)
+// - inputs: JSON with user-provided inputs
+// - outputs: JSON with agent outputs (if successful)
+// - status: Execution status (queued, running, success, failed, timeout)
+// - started_at: When execution started
+// - completed_at: When execution finished
+// - duration_ms: Execution duration in milliseconds
+// - stdout: Agent stdout (max 10KB, truncated if longer)
+// - stderr: Agent stderr (max 10KB, truncated if longer)
+// - error_message: Human-readable error message (if failed)
+// - exit_code: Process exit code (0 = success)
+// - worker_id: Which worker processed this execution (for debugging)
+//
+// Relationships:
+// - deployment: Many-to-one (multiple executions per deployment)
+// - agent: Many-to-one (for analytics)
+//
+// Note: purchase_intent_id, mandate_id, payment_id reference C-Layer models
+//
+// Indexes:
+// - (user_id, created_at) - For user execution history (DESC order)
+// - (agent_id, status) - For agent analytics
+// - deployment_id - For deployment-specific queries
+// - (status, created_at) - For queue processing
+// -------------------------------------------------------------------
+model AgentExecution {
+  id                 String    @id @default(cuid())
+  deployment_id      String
+  agent_id           String
+  user_id            String    // References Agent.id (C-Layer)
+
+  // Payment linkage (C-Layer)
+  purchase_intent_id String?   // References PurchaseIntent.id
+  mandate_id         String?   // References Mandate.id
+  payment_id         String?   // References Payment.id
+
+  // Execution details
+  inputs             Json
+  outputs            Json?
+
+  // Runtime metrics
+  status             String    @default("queued")
+  started_at         DateTime?
+  completed_at       DateTime?
+  duration_ms        Int?
+
+  // Logs (truncated to 10KB each)
+  stdout             String?   @db.Text
+  stderr             String?   @db.Text
+  error_message      String?
+  exit_code          Int?
+
+  // Debugging
+  worker_id          String?
+
+  created_at         DateTime  @default(now())
+
+  deployment AgentDeployment @relation(fields: [deployment_id], references: [id], onDelete: Cascade)
+  agent      AgentDefinition @relation(fields: [agent_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, created_at])
+  @@index([agent_id, status])
+  @@index([deployment_id])
+  @@index([status, created_at])
+  @@map("agent_executions")
+}
+
+// -------------------------------------------------------------------
+// DeveloperRevenue Model
+// -------------------------------------------------------------------
+// Tracks revenue earned by developers per execution.
+// Used for payouts and analytics.
+//
+// Fields:
+// - id: Unique revenue record identifier
+// - developer_id: Foreign key to Developer
+// - agent_id: Which agent generated this revenue (optional)
+// - execution_id: Which execution generated this revenue (optional)
+// - amount: Revenue amount in minor units (paise)
+// - currency: Currency code (ISO 4217)
+// - status: Payout status (pending, paid_out)
+// - paid_out_at: When revenue was paid to developer
+// - payout_method: How it was paid (upi, bank_transfer)
+// - payout_ref: External payout reference (e.g., Stripe payout ID)
+//
+// Relationships:
+// - developer: Many-to-one (multiple revenue records per developer)
+//
+// Indexes:
+// - (developer_id, status) - For payout queries
+// - created_at - For time-based analytics
+// -------------------------------------------------------------------
+model DeveloperRevenue {
+  id             String    @id @default(cuid())
+  developer_id   String
+  agent_id       String?
+  execution_id   String?
+
+  amount         Int
+  currency       String    @default("INR")
+
+  status         String    @default("pending")
+  paid_out_at    DateTime?
+  payout_method  String?
+  payout_ref     String?
+
+  created_at     DateTime  @default(now())
+
+  developer Developer @relation(fields: [developer_id], references: [id], onDelete: Cascade)
+
+  @@index([developer_id, status])
+  @@index([created_at])
+  @@map("developer_revenue")
+}
+
+// -------------------------------------------------------------------
+// AgentReview Model (Optional - Phase 2)
+// -------------------------------------------------------------------
+// User reviews and ratings for agents.
+//
+// Uncomment when implementing reviews feature:
+//
+// model AgentReview {
+//   id          String   @id @default(cuid())
+//   agent_id    String
+//   user_id     String   // References Agent.id (C-Layer)
+//   rating      Int      // 1-5 stars
+//   review_text String?  @db.Text
+//   helpful     Int      @default(0) // Upvotes
+//   created_at  DateTime @default(now())
+//   updated_at  DateTime @updatedAt
+//
+//   agent AgentDefinition @relation(fields: [agent_id], references: [id], onDelete: Cascade)
+//
+//   @@unique([agent_id, user_id]) // One review per user per agent
+//   @@index([agent_id, rating])
+//   @@map("agent_reviews")
+// }
+
+// -------------------------------------------------------------------
+// ExecutionQueue Model (Optional - if not using BullMQ)
+// -------------------------------------------------------------------
+// Alternative to BullMQ for job queue (simpler, database-backed).
+//
+// Uncomment if not using Redis/BullMQ:
+//
+// model ExecutionQueue {
+//   id            String    @id @default(cuid())
+//   execution_id  String    @unique
+//   priority      Int       @default(0) // Higher = more priority
+//   status        String    @default("pending") // pending, processing, completed, failed
+//   attempts      Int       @default(0)
+//   max_attempts  Int       @default(3)
+//   scheduled_at  DateTime  @default(now())
+//   started_at    DateTime?
+//   completed_at  DateTime?
+//   worker_id     String?
+//   error         String?
+//   created_at    DateTime  @default(now())
+//
+//   @@index([status, priority, scheduled_at])
+//   @@index([worker_id])
+//   @@map("execution_queue")
+// }
+
+// ===================================================================
+// End of Schema Extensions
+// ===================================================================

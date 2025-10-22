@@ -19,11 +19,19 @@ export class X402Adapter implements RailAdapter {
     this.publicKey = ed25519.getPublicKey(this.privateKey);
   }
 
-  async executePayment(
-    request: PaymentRequest,
-    vendorConfig: X402VendorConfig
-  ): Promise<PaymentResult> {
+  async executePayment(request: PaymentRequest): Promise<PaymentResult> {
     try {
+      // Extract vendor config from metadata
+      const vendorConfig = request.metadata?.x402_vendor_config as X402VendorConfig | undefined;
+
+      if (!vendorConfig || !vendorConfig.endpoint) {
+        return {
+          success: false,
+          status: "failed",
+          error: "x402_vendor_config with endpoint is required in request metadata",
+        };
+      }
+
       const timestamp = new Date();
       const requestBody = {
         agent_id: request.agent_id,
@@ -62,19 +70,36 @@ export class X402Adapter implements RailAdapter {
 
       if (!response.ok) {
         const errorBody = await response.json().catch(() => ({}));
+        // Type guard for error body
+        const errorMessage =
+          errorBody && typeof errorBody === 'object' && 'message' in errorBody && typeof errorBody.message === 'string'
+            ? errorBody.message
+            : `HTTP ${response.status}`;
+
         return {
           success: false,
           status: "failed",
-          error: errorBody.message || `HTTP ${response.status}`,
+          error: errorMessage,
         };
       }
 
       const responseData = await response.json();
 
+      // Type guard for response data
+      const providerRef =
+        responseData && typeof responseData === 'object' && 'settlement_ref' in responseData && typeof responseData.settlement_ref === 'string'
+          ? responseData.settlement_ref
+          : undefined;
+
+      const responseStatus =
+        responseData && typeof responseData === 'object' && 'status' in responseData && responseData.status === 'settled'
+          ? 'settled'
+          : 'pending';
+
       return {
         success: true,
-        provider_ref: responseData.settlement_ref,
-        status: responseData.status === "settled" ? "settled" : "pending",
+        provider_ref: providerRef,
+        status: responseStatus,
       };
     } catch (error) {
       if (error instanceof Error) {

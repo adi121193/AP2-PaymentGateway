@@ -36,8 +36,16 @@ export async function signMandate(mandateData: MandateData): Promise<SignedManda
   const env = getEnv();
 
   try {
-    // Generate deterministic hash of mandate data
-    const mandateHash = generateMandateHash(mandateData);
+    // Generate deterministic hash of mandate data (use all fields for proper uniqueness)
+    const mandateHash = generateMandateHash({
+      intent_id: mandateData.intent_id,
+      policy_id: mandateData.policy_id,
+      expires_at: mandateData.expires_at,
+      agent_id: mandateData.agent_id,
+      vendor: mandateData.vendor,
+      amount: mandateData.amount,
+      currency: mandateData.currency,
+    });
 
     // Convert MANDATE_SIGN_KEY from hex to bytes
     // The key should be 64 characters (32 bytes) in hex format
@@ -98,8 +106,16 @@ export function verifyMandateSignature(
   publicKey: string
 ): boolean {
   try {
-    // Generate hash from mandate data
-    const mandateHash = generateMandateHash(mandateData);
+    // Generate hash from mandate data (use all fields)
+    const mandateHash = generateMandateHash({
+      intent_id: mandateData.intent_id,
+      policy_id: mandateData.policy_id,
+      expires_at: mandateData.expires_at,
+      agent_id: mandateData.agent_id,
+      vendor: mandateData.vendor,
+      amount: mandateData.amount,
+      currency: mandateData.currency,
+    });
 
     // Convert hex strings to bytes
     const signatureBytes = hexToBytes(signature);
@@ -135,7 +151,9 @@ export function verifyMandateSignature(
  * Useful for verifying our own signatures
  */
 export function getPublicKeyFromPrivateKey(privateKeyHex: string): string {
-  const privateKey = hexToBytes(privateKeyHex.substring(0, 64));
+  // Remove 0x prefix if present, then take first 64 chars
+  const cleanHex = privateKeyHex.startsWith("0x") ? privateKeyHex.slice(2) : privateKeyHex;
+  const privateKey = hexToBytes(cleanHex.substring(0, 64));
   const publicKey = ed25519.getPublicKey(privateKey);
   return bytesToHex(publicKey);
 }
@@ -148,6 +166,11 @@ function hexToBytes(hex: string): Uint8Array {
 
   if (cleanHex.length % 2 !== 0) {
     throw new Error("Hex string must have even length");
+  }
+
+  // Validate hex characters
+  if (!/^[0-9a-fA-F]*$/.test(cleanHex)) {
+    throw new Error("Invalid hex characters in string");
   }
 
   const bytes = new Uint8Array(cleanHex.length / 2);

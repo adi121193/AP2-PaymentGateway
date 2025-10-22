@@ -12,7 +12,7 @@ export class StripeAdapter implements RailAdapter {
       throw new Error("STRIPE_SECRET_KEY is required for StripeAdapter");
     }
     this.stripe = new Stripe(env.STRIPE_SECRET_KEY, {
-      apiVersion: "2024-12-18.acacia",
+      apiVersion: "2023-10-16",
       typescript: true,
     });
   }

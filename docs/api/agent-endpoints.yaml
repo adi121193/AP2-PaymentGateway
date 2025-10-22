@@ -1,0 +1,877 @@
+openapi: 3.0.3
+
+info:
+  title: FrameOS Agent Runtime API
+  version: 1.0.0
+  description: |
+    API for the FrameOS Agent Marketplace and Execution Engine.
+
+    ## Authentication
+    All endpoints require JWT authentication via `Authorization: Bearer <token>` header.
+
+    ## Rate Limits
+    - Developer endpoints: 100 requests/hour
+    - User endpoints: 1000 requests/hour
+    - Execution endpoints: 100 executions/hour per user
+
+    ## Error Codes
+    - `AGENT_NOT_FOUND`: Agent does not exist
+    - `AGENT_NOT_PUBLISHED`: Agent not yet approved
+    - `EXECUTION_FAILED`: Agent execution failed
+    - `PAYMENT_FAILED`: Payment processing failed
+    - `INSUFFICIENT_BALANCE`: User has insufficient funds
+    - `RATE_LIMIT_EXCEEDED`: Too many requests
+
+  contact:
+    name: FrameOS Support
+    email: support@frameos.dev
+
+  license:
+    name: MIT
+
+servers:
+  - url: https://api.frameos.dev
+    description: Production
+  - url: https://api-staging.frameos.dev
+    description: Staging
+  - url: http://localhost:3000
+    description: Local development
+
+tags:
+  - name: Agents
+    description: Agent discovery and management
+  - name: Executions
+    description: Agent execution and monitoring
+  - name: Developers
+    description: Developer portal and analytics
+  - name: Deployments
+    description: User agent deployments
+
+paths:
+  # ============================================================
+  # AGENT ENDPOINTS
+  # ============================================================
+
+  /agents:
+    get:
+      summary: List all agents
+      description: Browse agents in the marketplace with filtering and sorting
+      operationId: listAgents
+      tags:
+        - Agents
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: category
+          in: query
+          description: Filter by category
+          schema:
+            type: string
+            enum: [automation, data_enrichment, outreach, analytics, content_generation, research, monitoring, integration, other]
+        - name: search
+          in: query
+          description: Search agent names and descriptions
+          schema:
+            type: string
+            maxLength: 100
+        - name: pricing_model
+          in: query
+          description: Filter by pricing model
+          schema:
+            type: string
+            enum: [per_execution, pay_per_use, subscription, free]
+        - name: sort
+          in: query
+          description: Sort order
+          schema:
+            type: string
+            enum: [popularity, newest, price_low, price_high, rating]
+            default: popularity
+        - name: page
+          in: query
+          description: Page number (1-indexed)
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Items per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      agents:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/AgentSummary'
+                      total:
+                        type: integer
+                        example: 127
+                      page:
+                        type: integer
+                        example: 1
+                      limit:
+                        type: integer
+                        example: 20
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /agents/register:
+    post:
+      summary: Register new agent
+      description: Developer publishes a new agent (requires manual approval)
+      operationId: registerAgent
+      tags:
+        - Agents
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentRegistration'
+      responses:
+        '201':
+          description: Agent registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      agent_id:
+                        type: string
+                        example: agt_def_abc123
+                      version_id:
+                        type: string
+                        example: ver_xyz789
+                      status:
+                        type: string
+                        example: pending_review
+                      scan_passed:
+                        type: boolean
+                        example: true
+                      message:
+                        type: string
+                        example: Agent submitted for review. Approval within 24 hours.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Agent slug already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /agents/{slug}:
+    get:
+      summary: Get agent details
+      description: Retrieve full details for a specific agent
+      operationId: getAgentBySlug
+      tags:
+        - Agents
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          description: Agent slug (e.g., "linkedin-outreach-agent")
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/AgentDetails'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /agents/{id}/deploy:
+    post:
+      summary: Deploy agent
+      description: User deploys agent to their account
+      operationId: deployAgent
+      tags:
+        - Deployments
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Agent ID
+          schema:
+            type: string
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - version
+              properties:
+                version:
+                  type: string
+                  description: Semantic version to deploy
+                  example: "1.2.3"
+                config:
+                  type: object
+                  description: User configuration (API keys, settings)
+                  additionalProperties: true
+                  example:
+                    linkedin_session_cookie: "AQEDARqS..."
+                    max_requests_per_day: 50
+      responses:
+        '201':
+          description: Agent deployed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      deployment_id:
+                        type: string
+                        example: dep_xyz789
+                      agent_id:
+                        type: string
+                        example: agt_def_abc123
+                      version:
+                        type: string
+                        example: "1.2.3"
+                      status:
+                        type: string
+                        example: configured
+                      message:
+                        type: string
+                        example: Agent deployed successfully. Ready to execute.
+
+  /agents/{id}/execute:
+    post:
+      summary: Execute agent
+      description: Trigger agent execution (queued asynchronously)
+      operationId: executeAgent
+      tags:
+        - Executions
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Agent ID
+          schema:
+            type: string
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - deployment_id
+                - inputs
+              properties:
+                deployment_id:
+                  type: string
+                  description: Deployment to execute
+                  example: dep_xyz789
+                inputs:
+                  type: object
+                  description: Agent inputs (must match manifest schema)
+                  additionalProperties: true
+                  example:
+                    target_profile_url: "https://linkedin.com/in/johndoe"
+      responses:
+        '202':
+          description: Execution queued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      execution_id:
+                        type: string
+                        example: exec_abc123
+                      status:
+                        type: string
+                        example: queued
+                      estimated_duration_ms:
+                        type: integer
+                        example: 15000
+                      poll_url:
+                        type: string
+                        example: /executions/exec_abc123
+                      message:
+                        type: string
+                        example: Execution queued. Check status at poll_url.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '402':
+          description: Payment required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  # ============================================================
+  # EXECUTION ENDPOINTS
+  # ============================================================
+
+  /executions/{id}:
+    get:
+      summary: Get execution status
+      description: Retrieve execution status and results
+      operationId: getExecution
+      tags:
+        - Executions
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Execution ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    oneOf:
+                      - $ref: '#/components/schemas/ExecutionQueued'
+                      - $ref: '#/components/schemas/ExecutionRunning'
+                      - $ref: '#/components/schemas/ExecutionSuccess'
+                      - $ref: '#/components/schemas/ExecutionFailed'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ============================================================
+  # DEVELOPER ENDPOINTS
+  # ============================================================
+
+  /developers/register:
+    post:
+      summary: Register developer account
+      description: Create new developer account for publishing agents
+      operationId: registerDeveloper
+      tags:
+        - Developers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - name
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: dev@example.com
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                  example: John Doe
+                password:
+                  type: string
+                  minLength: 8
+                  example: SecurePass123!
+                company:
+                  type: string
+                  maxLength: 100
+                  example: Acme Inc
+      responses:
+        '201':
+          description: Developer registered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      developer_id:
+                        type: string
+                        example: dev_123
+                      email:
+                        type: string
+                        example: dev@example.com
+                      message:
+                        type: string
+                        example: Account created. Please verify your email.
+        '409':
+          description: Email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /developers/analytics:
+    get:
+      summary: Get developer analytics
+      description: Retrieve revenue and usage analytics for developer
+      operationId: getDeveloperAnalytics
+      tags:
+        - Developers
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/DeveloperAnalytics'
+
+# ============================================================
+# COMPONENTS
+# ============================================================
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Unique key to prevent duplicate requests
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 255
+
+  schemas:
+    AgentSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          example: agt_def_abc123
+        name:
+          type: string
+          example: LinkedIn Cold Outreach Agent
+        slug:
+          type: string
+          example: linkedin-outreach-agent
+        description:
+          type: string
+          example: Automate LinkedIn connection requests
+        icon_url:
+          type: string
+          format: uri
+          example: https://cdn.frameos.dev/icons/linkedin.png
+        category:
+          type: string
+          example: outreach
+        pricing_model:
+          type: string
+          enum: [per_execution, pay_per_use, subscription, free]
+        price_amount:
+          type: integer
+          description: Price in minor units (paise)
+          example: 50
+        price_currency:
+          type: string
+          example: INR
+        current_version:
+          type: string
+          example: "1.2.3"
+        rating:
+          type: number
+          format: float
+          example: 4.8
+        review_count:
+          type: integer
+          example: 142
+        total_executions:
+          type: integer
+          example: 5230
+        developer:
+          type: object
+          properties:
+            id:
+              type: string
+              example: dev_123
+            name:
+              type: string
+              example: John Doe
+
+    AgentDetails:
+      allOf:
+        - $ref: '#/components/schemas/AgentSummary'
+        - type: object
+          properties:
+            long_description:
+              type: string
+              example: "# LinkedIn Outreach\n\nThis agent..."
+            tags:
+              type: array
+              items:
+                type: string
+              example: ["linkedin", "outreach", "b2b"]
+            capabilities:
+              type: array
+              items:
+                type: string
+              example: ["http_request"]
+            success_rate:
+              type: number
+              format: float
+              example: 0.96
+            avg_duration_ms:
+              type: integer
+              example: 12500
+            manifest:
+              type: object
+              description: Full agent manifest
+              additionalProperties: true
+            created_at:
+              type: string
+              format: date-time
+            updated_at:
+              type: string
+              format: date-time
+
+    AgentRegistration:
+      type: object
+      required:
+        - name
+        - slug
+        - description
+        - category
+        - pricing_model
+        - price_amount
+        - version
+        - manifest
+        - code_base64
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        slug:
+          type: string
+          pattern: '^[a-z0-9-]+$'
+        description:
+          type: string
+          minLength: 10
+          maxLength: 500
+        long_description:
+          type: string
+          maxLength: 5000
+        category:
+          type: string
+          enum: [automation, data_enrichment, outreach, analytics, content_generation, research, monitoring, integration, other]
+        pricing_model:
+          type: string
+          enum: [per_execution, pay_per_use, subscription, free]
+        price_amount:
+          type: integer
+          minimum: 0
+        price_currency:
+          type: string
+          default: INR
+        version:
+          type: string
+          pattern: '^\d+\.\d+\.\d+$'
+        manifest:
+          type: object
+          description: Agent manifest (see agent-manifest.ts)
+          additionalProperties: true
+        code_base64:
+          type: string
+          description: Base64-encoded tar.gz of agent code
+
+    ExecutionQueued:
+      type: object
+      properties:
+        id:
+          type: string
+          example: exec_abc123
+        agent_id:
+          type: string
+        agent_name:
+          type: string
+        status:
+          type: string
+          example: queued
+        created_at:
+          type: string
+          format: date-time
+        inputs:
+          type: object
+          additionalProperties: true
+
+    ExecutionRunning:
+      type: object
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+          example: running
+        started_at:
+          type: string
+          format: date-time
+        elapsed_ms:
+          type: integer
+          example: 8500
+        inputs:
+          type: object
+          additionalProperties: true
+
+    ExecutionSuccess:
+      type: object
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+          example: success
+        started_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+        duration_ms:
+          type: integer
+          example: 12340
+        inputs:
+          type: object
+          additionalProperties: true
+        outputs:
+          type: object
+          additionalProperties: true
+        payment:
+          type: object
+          properties:
+            amount:
+              type: integer
+            currency:
+              type: string
+            receipt_id:
+              type: string
+
+    ExecutionFailed:
+      type: object
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+          example: failed
+        started_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+        duration_ms:
+          type: integer
+        error_message:
+          type: string
+        exit_code:
+          type: integer
+        payment:
+          type: null
+
+    DeveloperAnalytics:
+      type: object
+      properties:
+        total_revenue:
+          type: integer
+          description: Lifetime revenue in minor units (paise)
+          example: 125000
+        pending_payout:
+          type: integer
+          description: Unpaid revenue
+          example: 85000
+        total_executions:
+          type: integer
+          example: 2500
+        agents:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              executions:
+                type: integer
+              revenue:
+                type: integer
+              success_rate:
+                type: number
+              avg_duration_ms:
+                type: integer
+        recent_executions:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              agent_name:
+                type: string
+              status:
+                type: string
+              revenue:
+                type: integer
+              created_at:
+                type: string
+                format: date-time
+
+    Error:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              example: AGENT_NOT_FOUND
+            message:
+              type: string
+              example: Agent not found
+            details:
+              type: object
+              additionalProperties: true
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            success: false
+            error:
+              code: VALIDATION_ERROR
+              message: Invalid request parameters
+              details:
+                field: version
+                issue: Must be semantic version (e.g., 1.0.0)
+
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            success: false
+            error:
+              code: UNAUTHORIZED
+              message: Invalid or missing authentication token
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            success: false
+            error:
+              code: AGENT_NOT_FOUND
+              message: Agent not found
+
+    RateLimited:
+      description: Rate limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            success: false
+            error:
+              code: RATE_LIMIT_EXCEEDED
+              message: Too many requests. Try again in 60 seconds.

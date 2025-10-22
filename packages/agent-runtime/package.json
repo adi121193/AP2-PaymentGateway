@@ -1,0 +1,20 @@
+{
+  "name": "@ap2/agent-runtime",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "main": "./src/executor.ts",
+  "types": "./src/executor.ts",
+  "exports": {
+    ".": "./src/executor.ts",
+    "./executor": "./src/executor.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.3"
+  }
+}

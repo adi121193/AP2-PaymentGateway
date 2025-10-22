@@ -5,6 +5,8 @@ import { purchaseIntentsRouter } from "./routes/purchase-intents.js";
 import { mandatesRouter } from "./routes/mandates.js";
 import { executeRouter } from "./routes/execute.js";
 import { receiptsRouter } from "./routes/receipts.js";
+import { webhooksRouter } from "./routes/webhooks/index.js";
+import { agentsRouter } from "./routes/agents/index.js";
 import { logger, logRequest } from "./logger.js";
 import type { Env } from "@ap2/domain";
 
@@ -17,7 +19,11 @@ export function createApp(env: Env): express.Application {
   // Trust proxy for correct IP addresses behind reverse proxies
   app.set("trust proxy", true);
 
-  // Parse JSON bodies
+  // IMPORTANT: Webhooks MUST be registered BEFORE json middleware
+  // Webhook signature verification requires raw body access
+  app.use("/webhooks", webhooksRouter);
+
+  // Parse JSON bodies (for non-webhook routes)
   app.use(express.json({ limit: "10mb" }));
   app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
@@ -68,9 +74,7 @@ export function createApp(env: Env): express.Application {
   app.use("/mandates", mandatesRouter);
   app.use("/execute", executeRouter);
   app.use("/receipts", receiptsRouter);
-
-  // TODO: Add webhooks in Phase C
-  // app.use("/webhooks", webhooksRouter);
+  app.use("/agents", agentsRouter);
 
   // 404 handler for unknown routes
   app.use((req: Request, res: Response) => {

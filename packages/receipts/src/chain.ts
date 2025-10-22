@@ -1,8 +1,11 @@
 import { createHash } from "crypto";
 
 export function stableStringify(obj: unknown): string {
-  if (obj === null || obj === undefined) {
-    return JSON.stringify(obj);
+  if (obj === null) {
+    return "null";
+  }
+  if (obj === undefined) {
+    return "undefined";
   }
 
   if (typeof obj !== "object") {
@@ -53,6 +56,10 @@ export interface MandateData {
   intent_id: string;
   policy_id: string;
   expires_at: Date;
+  agent_id?: string;
+  vendor?: string;
+  amount?: number;
+  currency?: string;
 }
 
 export function generateMandateHash(data: MandateData): string {
@@ -60,6 +67,10 @@ export function generateMandateHash(data: MandateData): string {
     intent_id: data.intent_id,
     policy_id: data.policy_id,
     expires_at: data.expires_at.toISOString(),
+    ...(data.agent_id !== undefined && { agent_id: data.agent_id }),
+    ...(data.vendor !== undefined && { vendor: data.vendor }),
+    ...(data.amount !== undefined && { amount: data.amount }),
+    ...(data.currency !== undefined && { currency: data.currency }),
   });
 
   return sha256Hash(canonical);
@@ -74,6 +85,12 @@ export function verifyReceiptChain(
 
   for (let i = 0; i < receipts.length; i++) {
     const receipt = receipts[i];
+
+    // Validate receipt exists
+    if (!receipt) {
+      return { valid: false, brokenAt: i };
+    }
+
     const expectedHash = generateReceiptHash({
       prev_hash: receipt.prev_hash,
       payment_id: receipt.payment_id,
@@ -89,6 +106,10 @@ export function verifyReceiptChain(
 
     if (i > 0) {
       const prevReceipt = receipts[i - 1];
+      // Validate previous receipt exists
+      if (!prevReceipt) {
+        return { valid: false, brokenAt: i };
+      }
       if (receipt.prev_hash !== prevReceipt.hash) {
         return { valid: false, brokenAt: i };
       }

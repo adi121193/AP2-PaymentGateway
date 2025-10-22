@@ -22,9 +22,12 @@
     "baseUrl": ".",
     "paths": {
       "@ap2/domain": ["./packages/domain/src"],
+      "@ap2/domain/*": ["./packages/domain/src/*"],
       "@ap2/database": ["./packages/database/src"],
       "@ap2/rails": ["./packages/rails/src"],
-      "@ap2/receipts": ["./packages/receipts/src"]
+      "@ap2/receipts": ["./packages/receipts/src"],
+      "@ap2/agent-runtime": ["./packages/agent-runtime/src"],
+      "@ap2/agent-runtime/*": ["./packages/agent-runtime/src/*"]
     }
   },
   "include": ["apps/**/*", "packages/**/*", "tests/**/*"],
