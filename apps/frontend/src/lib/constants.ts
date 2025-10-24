@@ -65,6 +65,9 @@ export const CATEGORY_INFO: Record<AgentCategory, CategoryInfo> = {
   },
 };
 
+// Export as array for forms/dropdowns
+export const CATEGORIES = Object.values(CATEGORY_INFO);
+
 // ============================================================================
 // Sort Options
 // ============================================================================

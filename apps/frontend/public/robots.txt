@@ -1,0 +1,11 @@
+# Allow all crawlers
+User-agent: *
+Allow: /
+
+# Disallow auth pages
+Disallow: /login
+Disallow: /signup
+Disallow: /dashboard
+
+# Sitemap
+Sitemap: https://frameos.dev/sitemap.xml

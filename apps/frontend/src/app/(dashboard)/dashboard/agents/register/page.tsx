@@ -41,15 +41,15 @@ const agentRegistrationSchema = z.object({
     .regex(/^[a-z0-9-]+$/, 'Slug must be lowercase with hyphens'),
   version: z.string().regex(/^\d+\.\d+\.\d+$/, 'Version must be semver (e.g., 1.0.0)'),
   description: z.string().min(20, 'Description must be at least 20 characters'),
-  long_description: z.string().optional(),
+  long_description: z.string(),
   category: z.string() as z.ZodType<AgentCategory>,
   tags: z.string().min(1, 'Add at least one tag'),
   pricing_model: z.string() as z.ZodType<PricingModel>,
   pricing_amount: z.number().min(0),
-  pricing_currency: z.string().default('USD'),
+  pricing_currency: z.string(),
   runtime_language: z.string() as z.ZodType<RuntimeLanguage>,
   runtime_version: z.string().min(1),
-  runtime_entrypoint: z.string().default('index.js'),
+  runtime_entrypoint: z.string(),
   runtime_timeout_ms: z.number().min(1000).max(300000),
   runtime_memory_mb: z.number().min(128).max(4096),
   runtime_cpu_cores: z.number().min(0.25).max(4),
@@ -65,6 +65,13 @@ export default function RegisterAgentPage() {
   const form = useForm<FormData>({
     resolver: zodResolver(agentRegistrationSchema),
     defaultValues: {
+      name: '',
+      slug: '',
+      version: '',
+      description: '',
+      long_description: '',
+      category: 'automation' as AgentCategory,
+      tags: '',
       pricing_model: 'per_execution',
       pricing_amount: 0,
       pricing_currency: 'USD',
@@ -74,7 +81,7 @@ export default function RegisterAgentPage() {
       runtime_timeout_ms: 30000,
       runtime_memory_mb: 512,
       runtime_cpu_cores: 1,
-    },
+    } as Partial<FormData>,
   });
 
   const { mutate: registerAgent, isPending } = useMutation({

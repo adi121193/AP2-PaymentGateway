@@ -18,8 +18,35 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "FrameOS - The Agent Marketplace",
-  description: "Build, share, and monetize AI agents on the FrameOS marketplace",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://frameos.dev'),
+  title: {
+    default: "FrameOS - The AI Agent Marketplace",
+    template: "%s | FrameOS"
+  },
+  description: "Build, share, and monetize AI agents on the FrameOS marketplace. Execute agents on-demand with transparent pricing and instant deployment.",
+  keywords: ["AI agents", "marketplace", "automation", "API", "developer platform", "agent runtime"],
+  authors: [{ name: "FrameOS Team" }],
+  creator: "FrameOS",
+  publisher: "FrameOS",
+  robots: {
+    index: true,
+    follow: true,
+  },
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: "https://frameos.dev",
+    title: "FrameOS - The AI Agent Marketplace",
+    description: "Build, share, and monetize AI agents on the FrameOS marketplace",
+    siteName: "FrameOS",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "FrameOS - The AI Agent Marketplace",
+    description: "Build, share, and monetize AI agents",
+    creator: "@frameos",
+  },
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({
@@ -28,9 +55,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        suppressHydrationWarning
       >
         <QueryProvider>
           <AuthInitializer />
