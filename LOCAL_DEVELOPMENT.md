@@ -98,6 +98,32 @@ npm run typecheck:all
 
 **Important:** Root `tsconfig.json` excludes `apps/frontend/**/*` because Next.js manages its own TypeScript configuration.
 
+## Process Management
+
+**New helper scripts** to manage running processes:
+
+```bash
+# Check what's running on ports 3000 and 3001
+npm run ps
+
+# Kill process on port 3001 (backend)
+npm run dev:clean
+
+# Kill processes on both ports 3000 and 3001
+npm run dev:clean:all
+
+# Kill and restart backend
+npm run dev:restart
+
+# Kill and restart both frontend + backend
+npm run dev:restart:all
+```
+
+**When to use:**
+- Use `npm run ps` when you're not sure if services are running
+- Use `npm run dev:restart` to safely restart the backend
+- Use `npm run dev:restart:all` to restart everything cleanly
+
 ## Database Commands
 
 ```bash
@@ -199,12 +225,47 @@ npm run build:frontend
 ```
 
 ### Port already in use
-API and frontend both default to port 3000. Run them separately or change ports:
+
+**Error**: `EADDRINUSE` or "Port already in use"
+
+**Cause**: Another process is already running on the required port.
+- Backend API runs on port **3001** (configured in `.env`)
+- Frontend runs on port **3000** (Next.js default)
+
+**Quick Fix:**
+
 ```bash
-# Frontend on different port
-cd apps/frontend
-PORT=3001 npm run dev
+# Kill processes and restart backend
+npm run dev:restart
+
+# Kill processes and restart both services
+npm run dev:restart:all
+
+# Just check what's running
+npm run ps
 ```
+
+**Manual Fix:**
+
+```bash
+# 1. Find the process using the port
+lsof -i :3001  # for backend
+lsof -i :3000  # for frontend
+
+# 2. Kill the process (replace <PID> with actual PID from above)
+kill <PID>
+
+# 3. If process won't die, force kill
+kill -9 <PID>
+
+# 4. Restart your service
+npm run dev
+```
+
+**Prevention:**
+- Always use `Ctrl+C` to stop development servers properly
+- Use `npm run dev:restart` instead of `npm run dev` if you're unsure
+- Check `npm run ps` before starting services
 
 ### Database connection errors
 1. Ensure PostgreSQL is running
