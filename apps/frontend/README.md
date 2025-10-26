@@ -40,10 +40,12 @@ Built with **Next.js 16**, **React 19**, **TypeScript**, and **Tailwind CSS 4**.
 ### Prerequisites
 - Node.js 20+ and npm
 
-### Installation
+### Installation & Running
+
+**IMPORTANT:** You are in the frontend workspace directory. Run the simple command:
 
 ```bash
-# Install dependencies
+# Install dependencies (if not already installed)
 npm install
 
 # Copy environment variables
@@ -54,6 +56,8 @@ npm run dev
 ```
 
 Visit [http://localhost:3000](http://localhost:3000)
+
+**Note:** If you want to run BOTH frontend and backend together, navigate to project root and run `npm run dev:all` instead
 
 ### Environment Variables
 

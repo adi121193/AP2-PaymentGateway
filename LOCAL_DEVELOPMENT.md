@@ -1,37 +1,57 @@
 # Local Development Guide
 
+## WHERE TO RUN COMMANDS
+
+**IMPORTANT:** This project uses npm workspaces. Different commands run from different directories:
+
+| Command | Run From | What It Does |
+|---------|----------|--------------|
+| `npm run dev` | `apps/frontend/` | Start ONLY frontend |
+| `npm run dev:frontend` | **PROJECT ROOT** | Start ONLY frontend (from root) |
+| `npm run dev` | **PROJECT ROOT** | Start ONLY backend API |
+| `npm run dev:all` | **PROJECT ROOT** | Start BOTH frontend + backend |
+
+**Rule of thumb:**
+- In a workspace directory (`apps/frontend/`, `apps/api/`) → use simple `npm run dev`
+- In project root → use specific commands like `dev:frontend`, `dev:all`
+
+---
+
 ## Quick Start
 
-### Frontend (Next.js)
+### Option 1: Frontend Only (Recommended for UI work)
 ```bash
+# From apps/frontend/ directory
 cd apps/frontend
-npm install
 npm run dev
+```
+OR from project root:
+```bash
+# From project root
+npm run dev:frontend
 ```
 Open http://localhost:3000
 
-### Backend API (Express)
+### Option 2: Backend API Only
 ```bash
+# From apps/api/ directory
 cd apps/api
-npm install
+npm run dev
+```
+OR from project root:
+```bash
+# From project root
 npm run dev
 ```
 API runs on http://localhost:3000
 
-### Full Monorepo
+### Option 3: Full Stack (Frontend + Backend)
 ```bash
-# From project root
-npm install
-
-# Run frontend dev server
-npm run dev:frontend
-
-# Run API dev server (default)
-npm run dev
-
-# Run both (parallel)
+# MUST run from project root
+cd /Users/blaknwhite/Downloads/AP2/AP2-code/AP2-PaymentGateway
 npm run dev:all
 ```
+This runs both servers in parallel (requires 2 different ports)
 
 ## Build Commands
 
@@ -157,6 +177,17 @@ JWT_SECRET=<32-char-secret>
 See `.env.example` in each workspace for complete list.
 
 ## Common Issues
+
+### "Missing script: dev:all" error
+**Cause:** You're running `npm run dev:all` from a workspace directory (like `apps/frontend/`)
+
+**Fix:** Either:
+1. Run simple command from current directory: `npm run dev`
+2. OR navigate to project root first:
+   ```bash
+   cd /Users/blaknwhite/Downloads/AP2/AP2-code/AP2-PaymentGateway
+   npm run dev:all
+   ```
 
 ### "Cannot find module '@ap2/...'"
 Run `npm install` from the **root directory** to install all workspace dependencies.
