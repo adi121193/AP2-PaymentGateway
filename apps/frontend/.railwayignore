@@ -1,0 +1,10 @@
+# Railway ignore file - exclude local development files
+.env.local
+.env.development
+.env.test
+.env*.local
+node_modules
+.next
+.git
+*.log
+.DS_Store
