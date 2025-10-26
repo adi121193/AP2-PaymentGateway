@@ -26,7 +26,7 @@ export function MarketplaceContent() {
   // Initialize state
   const [category, setCategory] = useState<AgentCategory | undefined>(undefined);
   const [searchQuery, setSearchQuery] = useState('');
-  const [sort, setSort] = useState<SortOption>('popular');
+  const [sort, setSort] = useState<SortOption>('downloads');
   const [page, setPage] = useState(0);
 
   // Update state from URL params after mount
