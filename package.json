@@ -8,8 +8,8 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm run dev --workspace=apps/api",
-    "dev:frontend": "npm run dev --workspace=apps/frontend",
+    "dev": "npm run dev --workspace=apps/frontend",
+    "dev:api": "npm run dev --workspace=apps/api",
     "dev:all": "npm run dev --workspaces --if-present",
     "dev:clean": "node -e \"try { require('child_process').execSync('lsof -ti :3001 | xargs kill -9', {stdio:'inherit'}); console.log('✅ Killed processes on port 3001'); } catch(e) { console.log('ℹ️  No processes found on port 3001'); }\"",
     "dev:clean:all": "node -e \"try { require('child_process').execSync('lsof -ti :3000,3001 | xargs kill -9', {stdio:'inherit'}); console.log('✅ Killed processes on ports 3000 and 3001'); } catch(e) { console.log('ℹ️  No processes found on ports 3000 or 3001'); }\"",
