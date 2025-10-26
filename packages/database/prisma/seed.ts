@@ -61,6 +61,15 @@ function signMandate(intentId: string, policyId: string, expiresAt: Date, privat
 async function clearDatabase() {
   console.log('🗑️  Clearing existing data...');
 
+  // Clear marketplace economy tables
+  await prisma.agentExecution.deleteMany();
+  await prisma.agentDeployment.deleteMany();
+  await prisma.agentVersion.deleteMany();
+  await prisma.agentDefinition.deleteMany();
+  await prisma.developerRevenue.deleteMany();
+  await prisma.developer.deleteMany();
+
+  // Clear payment gateway tables
   await prisma.receipt.deleteMany();
   await prisma.payment.deleteMany();
   await prisma.mandate.deleteMany();
@@ -554,6 +563,294 @@ async function main() {
   console.log(`   - old_vendor: enabled=false\n`);
 
   // =========================================================================
+  // 9. CREATE DEVELOPERS (3 developers for marketplace)
+  // =========================================================================
+  console.log('👨‍💻 Creating developers...');
+
+  const dev1 = await prisma.developer.create({
+    data: {
+      id: 'dev_001',
+      email: 'alice@example.com',
+      name: 'Alice Thompson',
+      verified: true,
+      stripe_account_id: 'acct_test_alice_123',
+      api_key_hash: 'hash_alice_' + Buffer.from(ed25519.utils.randomPrivateKey()).toString('hex').substring(0, 32),
+    },
+  });
+
+  const dev2 = await prisma.developer.create({
+    data: {
+      id: 'dev_002',
+      email: 'bob@example.com',
+      name: 'Bob Martinez',
+      verified: true,
+      stripe_account_id: 'acct_test_bob_456',
+      api_key_hash: 'hash_bob_' + Buffer.from(ed25519.utils.randomPrivateKey()).toString('hex').substring(0, 32),
+    },
+  });
+
+  const dev3 = await prisma.developer.create({
+    data: {
+      id: 'dev_003',
+      email: 'charlie@example.com',
+      name: 'Charlie Kim',
+      verified: false,
+    },
+  });
+
+  console.log(`✅ Created 3 developers`);
+  console.log(`   - Alice Thompson (verified, Stripe connected)`);
+  console.log(`   - Bob Martinez (verified, Stripe connected)`);
+  console.log(`   - Charlie Kim (not verified)\n`);
+
+  // =========================================================================
+  // 10. CREATE AGENT DEFINITIONS (5 marketplace agents)
+  // =========================================================================
+  console.log('🤖 Creating marketplace agent definitions...');
+
+  const agentDef1 = await prisma.agentDefinition.create({
+    data: {
+      id: 'agt_mkt_001',
+      developer_id: dev1.id,
+      status: 'approved',
+      downloads: 1247,
+      rating: 4.8,
+      code_url: 'https://storage.example.com/agents/data-enrichment-v1.zip',
+      manifest: {
+        name: 'Data Enrichment Agent',
+        description: 'Enriches customer data with email verification, company info, and social profiles using multiple data providers.',
+        category: 'Data Processing',
+        version: '1.2.0',
+        author: 'Alice Thompson',
+        pricing: {
+          model: 'per_execution',
+          price_per_execution: 25,
+          currency: 'USD',
+        },
+        capabilities: ['email-verification', 'company-lookup', 'social-profiles'],
+        input_schema: {
+          type: 'object',
+          properties: {
+            email: { type: 'string', format: 'email' },
+            company_name: { type: 'string' },
+          },
+          required: ['email'],
+        },
+        output_schema: {
+          type: 'object',
+          properties: {
+            verified: { type: 'boolean' },
+            company: { type: 'object' },
+            social_profiles: { type: 'array' },
+          },
+        },
+        tags: ['data', 'enrichment', 'crm', 'verification'],
+      },
+    },
+  });
+
+  const agentDef2 = await prisma.agentDefinition.create({
+    data: {
+      id: 'agt_mkt_002',
+      developer_id: dev1.id,
+      status: 'approved',
+      downloads: 856,
+      rating: 4.6,
+      code_url: 'https://storage.example.com/agents/sentiment-analyzer-v2.zip',
+      manifest: {
+        name: 'Sentiment Analyzer',
+        description: 'Advanced NLP-based sentiment analysis for customer feedback, reviews, and social media content with emotion detection.',
+        category: 'NLP',
+        version: '2.0.1',
+        author: 'Alice Thompson',
+        pricing: {
+          model: 'per_execution',
+          price_per_execution: 15,
+          currency: 'USD',
+        },
+        capabilities: ['sentiment-analysis', 'emotion-detection', 'language-detection'],
+        input_schema: {
+          type: 'object',
+          properties: {
+            text: { type: 'string' },
+            language: { type: 'string' },
+          },
+          required: ['text'],
+        },
+        output_schema: {
+          type: 'object',
+          properties: {
+            sentiment: { type: 'string', enum: ['positive', 'negative', 'neutral'] },
+            score: { type: 'number' },
+            emotions: { type: 'array' },
+          },
+        },
+        tags: ['nlp', 'sentiment', 'analysis', 'ai'],
+      },
+    },
+  });
+
+  const agentDef3 = await prisma.agentDefinition.create({
+    data: {
+      id: 'agt_mkt_003',
+      developer_id: dev2.id,
+      status: 'approved',
+      downloads: 2103,
+      rating: 4.9,
+      code_url: 'https://storage.example.com/agents/image-optimizer-v1.zip',
+      manifest: {
+        name: 'Smart Image Optimizer',
+        description: 'AI-powered image optimization with automatic format conversion, compression, and quality enhancement for web and mobile.',
+        category: 'Media Processing',
+        version: '1.5.0',
+        author: 'Bob Martinez',
+        pricing: {
+          model: 'per_execution',
+          price_per_execution: 10,
+          currency: 'USD',
+        },
+        capabilities: ['image-compression', 'format-conversion', 'quality-enhancement', 'resize'],
+        input_schema: {
+          type: 'object',
+          properties: {
+            image_url: { type: 'string', format: 'uri' },
+            target_format: { type: 'string', enum: ['webp', 'jpg', 'png', 'avif'] },
+            max_width: { type: 'number' },
+          },
+          required: ['image_url'],
+        },
+        output_schema: {
+          type: 'object',
+          properties: {
+            optimized_url: { type: 'string' },
+            size_reduction: { type: 'number' },
+            dimensions: { type: 'object' },
+          },
+        },
+        tags: ['image', 'optimization', 'media', 'compression'],
+      },
+    },
+  });
+
+  const agentDef4 = await prisma.agentDefinition.create({
+    data: {
+      id: 'agt_mkt_004',
+      developer_id: dev2.id,
+      status: 'approved',
+      downloads: 445,
+      rating: 4.3,
+      code_url: 'https://storage.example.com/agents/invoice-extractor-v1.zip',
+      manifest: {
+        name: 'Invoice Data Extractor',
+        description: 'Extract structured data from invoices and receipts using OCR and machine learning. Supports multiple formats and languages.',
+        category: 'Document Processing',
+        version: '1.0.2',
+        author: 'Bob Martinez',
+        pricing: {
+          model: 'per_execution',
+          price_per_execution: 50,
+          currency: 'USD',
+        },
+        capabilities: ['ocr', 'data-extraction', 'invoice-parsing', 'receipt-parsing'],
+        input_schema: {
+          type: 'object',
+          properties: {
+            document_url: { type: 'string', format: 'uri' },
+            document_type: { type: 'string', enum: ['invoice', 'receipt'] },
+          },
+          required: ['document_url'],
+        },
+        output_schema: {
+          type: 'object',
+          properties: {
+            vendor: { type: 'string' },
+            total: { type: 'number' },
+            line_items: { type: 'array' },
+            date: { type: 'string' },
+          },
+        },
+        tags: ['ocr', 'invoice', 'document', 'extraction'],
+      },
+    },
+  });
+
+  const agentDef5 = await prisma.agentDefinition.create({
+    data: {
+      id: 'agt_mkt_005',
+      developer_id: dev3.id,
+      status: 'pending_review',
+      downloads: 0,
+      code_url: 'https://storage.example.com/agents/spam-detector-v1.zip',
+      manifest: {
+        name: 'Spam Detector Pro',
+        description: 'Machine learning-based spam detection for emails and messages with real-time threat analysis.',
+        category: 'Security',
+        version: '0.9.0',
+        author: 'Charlie Kim',
+        pricing: {
+          model: 'per_execution',
+          price_per_execution: 5,
+          currency: 'USD',
+        },
+        capabilities: ['spam-detection', 'threat-analysis', 'phishing-detection'],
+        input_schema: {
+          type: 'object',
+          properties: {
+            message: { type: 'string' },
+            sender: { type: 'string' },
+          },
+          required: ['message'],
+        },
+        output_schema: {
+          type: 'object',
+          properties: {
+            is_spam: { type: 'boolean' },
+            confidence: { type: 'number' },
+            threats: { type: 'array' },
+          },
+        },
+        tags: ['security', 'spam', 'detection', 'email'],
+      },
+    },
+  });
+
+  console.log(`✅ Created 5 agent definitions`);
+  console.log(`   - Data Enrichment Agent (approved, 1247 downloads, 4.8★)`);
+  console.log(`   - Sentiment Analyzer (approved, 856 downloads, 4.6★)`);
+  console.log(`   - Smart Image Optimizer (approved, 2103 downloads, 4.9★)`);
+  console.log(`   - Invoice Data Extractor (approved, 445 downloads, 4.3★)`);
+  console.log(`   - Spam Detector Pro (pending review, 0 downloads)\n`);
+
+  // =========================================================================
+  // 11. CREATE AGENT VERSIONS (example versions for agent 1)
+  // =========================================================================
+  console.log('📦 Creating agent versions...');
+
+  await prisma.agentVersion.create({
+    data: {
+      agent_id: agentDef1.id,
+      version: '1.2.0',
+      status: 'active',
+      code_url: 'https://storage.example.com/agents/data-enrichment-v1.2.0.zip',
+      changelog: 'Added LinkedIn profile enrichment; Fixed email verification API timeout issues',
+      manifest: agentDef1.manifest,
+    },
+  });
+
+  await prisma.agentVersion.create({
+    data: {
+      agent_id: agentDef1.id,
+      version: '1.1.0',
+      status: 'deprecated',
+      code_url: 'https://storage.example.com/agents/data-enrichment-v1.1.0.zip',
+      changelog: 'Initial release with email and company lookup',
+      manifest: agentDef1.manifest,
+    },
+  });
+
+  console.log(`✅ Created 2 agent versions for Data Enrichment Agent\n`);
+
+  // =========================================================================
   // VERIFICATION: Verify hash chain integrity
   // =========================================================================
   console.log('🔍 Verifying receipt hash chain...');
@@ -624,7 +921,7 @@ async function main() {
   console.log('✅ DATABASE SEEDED SUCCESSFULLY!');
   console.log('═'.repeat(70));
   console.log(`
-📊 SUMMARY:
+📊 SUMMARY - PAYMENT GATEWAY:
    - Agents:              3 (1 LOW, 1 MEDIUM, 1 HIGH risk)
    - Policies:            3 (1 active, 1 active, 1 expired)
    - Purchase Intents:    5 (1 pending, 1 approved, 1 executed, 1 rejected, 1 x402)
@@ -633,6 +930,13 @@ async function main() {
    - Receipts:            5 (hash chain verified ✓)
    - Idempotency Records: 2
    - X402 Endpoints:      2 (1 enabled, 1 disabled)
+
+📊 SUMMARY - MARKETPLACE:
+   - Developers:          3 (2 verified, 1 pending)
+   - Agent Definitions:   5 (4 approved, 1 pending review)
+   - Agent Versions:      2 (for Data Enrichment Agent)
+   - Total Downloads:     4,651
+   - Avg Rating:          4.65★
 
 🔑 TEST AGENT IDs:
    - agt_demo_001       (LOW risk, active)

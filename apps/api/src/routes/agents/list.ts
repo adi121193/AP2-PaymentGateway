@@ -23,7 +23,7 @@ const ListAgentsQuerySchema = z.object({
   sort: z.enum(["downloads", "rating", "newest"]).default("downloads"),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   offset: z.coerce.number().int().min(0).default(0),
-  status: z.enum(["active", "pending_review", "all"]).default("active"),
+  status: z.enum(["approved", "active", "pending_review", "all"]).default("approved"),
 });
 
 /**
@@ -239,8 +239,8 @@ router.get("/:id", async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Only show active agents to public (unless developer is viewing their own)
-    if (agent.status !== "active") {
+    // Only show approved/active agents to public (unless developer is viewing their own)
+    if (agent.status !== "approved" && agent.status !== "active") {
       res.status(404).json({
         success: false,
         error: {
