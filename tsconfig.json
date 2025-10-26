@@ -30,6 +30,11 @@
       "@ap2/agent-runtime/*": ["./packages/agent-runtime/src/*"]
     }
   },
-  "include": ["apps/**/*", "packages/**/*", "tests/**/*"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts"]
+  "include": ["apps/api/**/*", "packages/**/*", "tests/**/*"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.test.ts",
+    "apps/frontend/**/*"
+  ]
 }
