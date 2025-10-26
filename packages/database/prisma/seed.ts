@@ -814,12 +814,270 @@ async function main() {
     },
   });
 
-  console.log(`✅ Created 5 agent definitions`);
+  const agentDef6 = await prisma.agentDefinition.create({
+    data: {
+      id: 'agt_mkt_006',
+      developer_id: dev1.id,
+      status: 'approved',
+      downloads: 342,
+      rating: 4.5,
+      code_url: 'https://storage.example.com/agents/cashfree-microcharge-v1.zip',
+      manifest: {
+        name: 'Cashfree MicroCharge Bot',
+        description: 'Cleans webhook payloads and validates low-value transactions for Cashfree payment gateway integration.',
+        category: 'automation',
+        version: '1.0.0',
+        author: 'Alice Thompson',
+        pricing: {
+          model: 'per_execution',
+          amount: 8,
+          currency: 'INR',
+        },
+        capabilities: ['webhook-validation', 'payload-cleaning', 'x402-protocol'],
+        input_schema: {
+          type: 'object',
+          properties: {
+            payload_url: { type: 'string', format: 'uri' },
+            schema_ref: { type: 'string' },
+          },
+          required: ['payload_url', 'schema_ref'],
+        },
+        output_schema: {
+          type: 'object',
+          properties: {
+            normalized_payload: { type: 'object' },
+            validation_report: { type: 'object' },
+          },
+        },
+        tags: ['cashfree', 'webhook', 'automation', 'x402', 'payments'],
+        x402_enabled: true,
+        risk_tier: 'LOW',
+      },
+    },
+  });
+
+  const agentDef7 = await prisma.agentDefinition.create({
+    data: {
+      id: 'agt_mkt_007',
+      developer_id: dev2.id,
+      status: 'approved',
+      downloads: 478,
+      rating: 4.7,
+      code_url: 'https://storage.example.com/agents/gst-reconciler-v1.zip',
+      manifest: {
+        name: 'GST Compliance Reconciler',
+        description: 'Reconciles Indian GST invoices against bank statements with automated matching and discrepancy detection.',
+        category: 'data_enrichment',
+        version: '2.1.0',
+        author: 'Bob Martinez',
+        pricing: {
+          model: 'per_execution',
+          amount: 90,
+          currency: 'INR',
+        },
+        capabilities: ['gst-reconciliation', 'invoice-matching', 'compliance-reporting'],
+        input_schema: {
+          type: 'object',
+          properties: {
+            gstin: { type: 'string' },
+            statement_csv: { type: 'string', format: 'uri' },
+            invoice_zip: { type: 'string', format: 'uri' },
+          },
+          required: ['gstin', 'statement_csv', 'invoice_zip'],
+        },
+        output_schema: {
+          type: 'object',
+          properties: {
+            matched_entries: { type: 'array' },
+            discrepancies: { type: 'array' },
+          },
+        },
+        tags: ['gst', 'compliance', 'reconciliation', 'india', 'accounting'],
+        risk_tier: 'MEDIUM',
+      },
+    },
+  });
+
+  const agentDef8 = await prisma.agentDefinition.create({
+    data: {
+      id: 'agt_mkt_008',
+      developer_id: dev1.id,
+      status: 'approved',
+      downloads: 201,
+      rating: 4.8,
+      code_url: 'https://storage.example.com/agents/dispute-concierge-v1.zip',
+      manifest: {
+        name: 'AI Dispute Resolution Concierge',
+        description: 'Drafts dispute responses for payment service providers using AI to analyze evidence and generate comprehensive response letters.',
+        category: 'automation',
+        version: '1.3.0',
+        author: 'Alice Thompson',
+        pricing: {
+          model: 'subscription',
+          amount: 999900,
+          currency: 'INR',
+        },
+        capabilities: ['dispute-analysis', 'ai-writing', 'risk-assessment', 'evidence-processing'],
+        input_schema: {
+          type: 'object',
+          properties: {
+            dispute_id: { type: 'string' },
+            evidence_pack: { type: 'string', format: 'uri' },
+            merchant_profile: { type: 'object' },
+          },
+          required: ['dispute_id', 'evidence_pack'],
+        },
+        output_schema: {
+          type: 'object',
+          properties: {
+            response_letter: { type: 'string' },
+            risk_score: { type: 'number' },
+          },
+        },
+        tags: ['dispute', 'ai', 'payments', 'customer-support', 'automation'],
+        risk_tier: 'MEDIUM',
+      },
+    },
+  });
+
+  const agentDef9 = await prisma.agentDefinition.create({
+    data: {
+      id: 'agt_mkt_009',
+      developer_id: dev2.id,
+      status: 'approved',
+      downloads: 267,
+      rating: 4.6,
+      code_url: 'https://storage.example.com/agents/fraud-signal-mesh-v1.zip',
+      manifest: {
+        name: 'Enterprise Fraud Signal Mesh',
+        description: 'Aggregates device and risk telemetry for fraud detection with real-time scoring and recommended actions.',
+        category: 'analytics',
+        version: '3.0.0',
+        author: 'Bob Martinez',
+        pricing: {
+          model: 'per_execution',
+          amount: 18,
+          currency: 'INR',
+        },
+        capabilities: ['fraud-detection', 'device-fingerprinting', 'risk-scoring', 'telemetry-analysis'],
+        input_schema: {
+          type: 'object',
+          properties: {
+            device_hash: { type: 'string' },
+            ip: { type: 'string' },
+            order_meta: { type: 'object' },
+          },
+          required: ['device_hash', 'ip', 'order_meta'],
+        },
+        output_schema: {
+          type: 'object',
+          properties: {
+            fraud_score: { type: 'number' },
+            recommended_action: { type: 'string' },
+          },
+        },
+        tags: ['fraud', 'security', 'analytics', 'risk', 'enterprise'],
+        risk_tier: 'HIGH',
+      },
+    },
+  });
+
+  const agentDef10 = await prisma.agentDefinition.create({
+    data: {
+      id: 'agt_mkt_010',
+      developer_id: dev1.id,
+      status: 'approved',
+      downloads: 389,
+      rating: 4.4,
+      code_url: 'https://storage.example.com/agents/creative-assets-v1.zip',
+      manifest: {
+        name: 'Creative Assets Synthesizer',
+        description: 'Generates localized ad assets using GenAI with multi-locale support and various asset format outputs.',
+        category: 'content_generation',
+        version: '1.2.0',
+        author: 'Alice Thompson',
+        pricing: {
+          model: 'per_execution',
+          amount: 320,
+          currency: 'INR',
+        },
+        capabilities: ['genai', 'localization', 'asset-generation', 'creative-automation'],
+        input_schema: {
+          type: 'object',
+          properties: {
+            brand_brief: { type: 'string' },
+            locales: { type: 'array' },
+            asset_types: { type: 'array' },
+          },
+          required: ['brand_brief', 'locales', 'asset_types'],
+        },
+        output_schema: {
+          type: 'object',
+          properties: {
+            asset_bundle_url: { type: 'string' },
+            usage_report: { type: 'object' },
+          },
+        },
+        tags: ['genai', 'creative', 'marketing', 'localization', 'assets'],
+        risk_tier: 'LOW',
+      },
+    },
+  });
+
+  const agentDef11 = await prisma.agentDefinition.create({
+    data: {
+      id: 'agt_mkt_011',
+      developer_id: dev2.id,
+      status: 'approved',
+      downloads: 423,
+      rating: 4.9,
+      code_url: 'https://storage.example.com/agents/compliance-notary-v1.zip',
+      manifest: {
+        name: 'Compliance Ledger Notary',
+        description: 'Notarizes receipts to external compliance ledger for regulatory compliance with tamper-proof hash pointers.',
+        category: 'integration',
+        version: '1.0.5',
+        author: 'Bob Martinez',
+        pricing: {
+          model: 'subscription',
+          amount: 2499900,
+          currency: 'INR',
+        },
+        capabilities: ['ledger-notarization', 'compliance', 'receipt-anchoring', 'regulatory-reporting'],
+        input_schema: {
+          type: 'object',
+          properties: {
+            mandate_id: { type: 'string' },
+            receipt_chain_start: { type: 'string' },
+            regulator: { type: 'string' },
+          },
+          required: ['mandate_id', 'receipt_chain_start', 'regulator'],
+        },
+        output_schema: {
+          type: 'object',
+          properties: {
+            notarized_receipt_url: { type: 'string' },
+            hash_pointer: { type: 'string' },
+          },
+        },
+        tags: ['compliance', 'ledger', 'regulatory', 'notary', 'receipts'],
+        risk_tier: 'LOW',
+      },
+    },
+  });
+
+  console.log(`✅ Created 11 agent definitions`);
   console.log(`   - Data Enrichment Agent (approved, 1247 downloads, 4.8★)`);
   console.log(`   - Sentiment Analyzer (approved, 856 downloads, 4.6★)`);
   console.log(`   - Smart Image Optimizer (approved, 2103 downloads, 4.9★)`);
   console.log(`   - Invoice Data Extractor (approved, 445 downloads, 4.3★)`);
-  console.log(`   - Spam Detector Pro (pending review, 0 downloads)\n`);
+  console.log(`   - Spam Detector Pro (pending review, 0 downloads)`);
+  console.log(`   - Cashfree MicroCharge Bot (approved, 342 downloads, 4.5★)`);
+  console.log(`   - GST Compliance Reconciler (approved, 478 downloads, 4.7★)`);
+  console.log(`   - AI Dispute Resolution Concierge (approved, 201 downloads, 4.8★)`);
+  console.log(`   - Enterprise Fraud Signal Mesh (approved, 267 downloads, 4.6★)`);
+  console.log(`   - Creative Assets Synthesizer (approved, 389 downloads, 4.4★)`);
+  console.log(`   - Compliance Ledger Notary (approved, 423 downloads, 4.9★)\n`);
 
   // =========================================================================
   // 11. CREATE AGENT VERSIONS (example versions for agent 1)
@@ -933,10 +1191,10 @@ async function main() {
 
 📊 SUMMARY - MARKETPLACE:
    - Developers:          3 (2 verified, 1 pending)
-   - Agent Definitions:   5 (4 approved, 1 pending review)
+   - Agent Definitions:   11 (10 approved, 1 pending review)
    - Agent Versions:      2 (for Data Enrichment Agent)
-   - Total Downloads:     4,651
-   - Avg Rating:          4.65★
+   - Total Downloads:     6,751
+   - Avg Rating:          4.63★
 
 🔑 TEST AGENT IDs:
    - agt_demo_001       (LOW risk, active)
