@@ -113,9 +113,9 @@ export function ExecuteAgentDialog({ agent, open, onOpenChange }: ExecuteAgentDi
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Execute {agent.manifest.name}</DialogTitle>
+          <DialogTitle>Execute {agent.manifest?.name || 'Agent'}</DialogTitle>
           <DialogDescription>
-            {agent.manifest.inputs.length === 0
+            {!agent.manifest?.inputs || agent.manifest.inputs.length === 0
               ? 'This agent does not require any inputs. Click execute to run.'
               : 'Fill in the required inputs to execute this agent.'}
           </DialogDescription>
@@ -140,7 +140,7 @@ export function ExecuteAgentDialog({ agent, open, onOpenChange }: ExecuteAgentDi
         {!executionId && (
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             {/* Dynamic Input Fields */}
-            {agent.manifest.inputs.length > 0 ? (
+            {agent.manifest?.inputs && agent.manifest.inputs.length > 0 ? (
               <div className="space-y-4">
                 {agent.manifest.inputs.map((input) => (
                   <DynamicInputField

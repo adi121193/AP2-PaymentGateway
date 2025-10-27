@@ -256,11 +256,12 @@ router.get("/:id", async (req: Request, res: Response): Promise<void> => {
     res.json({
       success: true,
       data: {
-        ...manifest,
         id: agent.id,
+        manifest: manifest,
         downloads: agent.downloads,
         rating: agent.rating,
         status: agent.status,
+        developer_id: agent.developer.id,
         author: {
           id: agent.developer.id,
           name: agent.developer.name,

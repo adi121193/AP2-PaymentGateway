@@ -23,8 +23,10 @@ interface AgentTabsProps {
 
 export function AgentTabs({ agent }: AgentTabsProps) {
   const { manifest } = agent;
-  const runtimeInfo = RUNTIME_LANGUAGE_INFO[manifest.runtime.language];
-  const pricingLabel = PRICING_MODEL_LABELS[manifest.pricing.model];
+  const runtimeInfo = manifest.runtime?.language 
+    ? RUNTIME_LANGUAGE_INFO[manifest.runtime.language] 
+    : { label: 'Node.js', icon: '📦', value: 'nodejs' };
+  const pricingLabel = PRICING_MODEL_LABELS[manifest.pricing?.model || 'per_execution'];
 
   return (
     <Tabs defaultValue="overview" className="w-full">
@@ -98,41 +100,43 @@ export function AgentTabs({ agent }: AgentTabsProps) {
         </Card>
 
         {/* Runtime Information */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Runtime Information</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Language</dt>
-                <dd className="text-base mt-1">
-                  {runtimeInfo.icon} {runtimeInfo.label} {manifest.runtime.version}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Entrypoint</dt>
-                <dd className="text-base mt-1 font-mono text-sm">
-                  {manifest.runtime.entrypoint}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Memory</dt>
-                <dd className="text-base mt-1">{manifest.runtime.memory_mb} MB</dd>
-              </div>
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Timeout</dt>
-                <dd className="text-base mt-1">
-                  {manifest.runtime.timeout_ms / 1000} seconds
-                </dd>
-              </div>
-              <div>
-                <dt className="text-sm font-medium text-gray-500">CPU Cores</dt>
-                <dd className="text-base mt-1">{manifest.runtime.cpu_cores}</dd>
-              </div>
-            </dl>
-          </CardContent>
-        </Card>
+        {manifest.runtime && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Runtime Information</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <dt className="text-sm font-medium text-gray-500">Language</dt>
+                  <dd className="text-base mt-1">
+                    {runtimeInfo.icon} {runtimeInfo.label} {manifest.runtime.version || 'Latest'}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-sm font-medium text-gray-500">Entrypoint</dt>
+                  <dd className="text-base mt-1 font-mono text-sm">
+                    {manifest.runtime.entrypoint || 'index.js'}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-sm font-medium text-gray-500">Memory</dt>
+                  <dd className="text-base mt-1">{manifest.runtime.memory_mb || 512} MB</dd>
+                </div>
+                <div>
+                  <dt className="text-sm font-medium text-gray-500">Timeout</dt>
+                  <dd className="text-base mt-1">
+                    {(manifest.runtime.timeout_ms || 30000) / 1000} seconds
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-sm font-medium text-gray-500">CPU Cores</dt>
+                  <dd className="text-base mt-1">{manifest.runtime.cpu_cores || 1}</dd>
+                </div>
+              </dl>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Tags */}
         {manifest.tags && manifest.tags.length > 0 && (

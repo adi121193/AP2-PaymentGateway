@@ -32,7 +32,10 @@ export function AgentSidebar({ agent }: AgentSidebarProps) {
             {manifest.pricing.model === 'free' ? (
               <span className="text-green-600">FREE</span>
             ) : (
-              formatCurrency(manifest.pricing.amount, manifest.pricing.currency)
+              formatCurrency(
+                manifest.pricing.amount || manifest.pricing.price_per_execution || 0, 
+                manifest.pricing.currency
+              )
             )}
           </CardTitle>
           <CardDescription>

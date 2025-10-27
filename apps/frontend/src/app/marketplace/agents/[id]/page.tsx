@@ -68,11 +68,13 @@ export default function AgentDetailPage() {
   }
 
   // Breadcrumb items
-  const categoryInfo = CATEGORY_INFO[agent.manifest.category];
+  const categoryInfo = agent.manifest?.category 
+    ? CATEGORY_INFO[agent.manifest.category] || CATEGORY_INFO.other
+    : CATEGORY_INFO.other;
   const breadcrumbItems = [
     { label: 'Marketplace', href: '/marketplace' },
-    { label: categoryInfo.label, href: `/marketplace/category/${agent.manifest.category}` },
-    { label: agent.manifest.name },
+    { label: categoryInfo.label, href: `/marketplace/category/${agent.manifest?.category || 'other'}` },
+    { label: agent.manifest?.name || 'Unknown Agent' },
   ];
 
   return (

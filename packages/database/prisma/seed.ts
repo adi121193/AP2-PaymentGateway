@@ -619,7 +619,7 @@ async function main() {
       manifest: {
         name: 'Data Enrichment Agent',
         description: 'Enriches customer data with email verification, company info, and social profiles using multiple data providers.',
-        category: 'Data Processing',
+        category: 'data_enrichment',
         version: '1.2.0',
         author: 'Alice Thompson',
         pricing: {
@@ -660,7 +660,7 @@ async function main() {
       manifest: {
         name: 'Sentiment Analyzer',
         description: 'Advanced NLP-based sentiment analysis for customer feedback, reviews, and social media content with emotion detection.',
-        category: 'NLP',
+        category: 'analytics',
         version: '2.0.1',
         author: 'Alice Thompson',
         pricing: {
@@ -701,7 +701,7 @@ async function main() {
       manifest: {
         name: 'Smart Image Optimizer',
         description: 'AI-powered image optimization with automatic format conversion, compression, and quality enhancement for web and mobile.',
-        category: 'Media Processing',
+        category: 'automation',
         version: '1.5.0',
         author: 'Bob Martinez',
         pricing: {
@@ -743,7 +743,7 @@ async function main() {
       manifest: {
         name: 'Invoice Data Extractor',
         description: 'Extract structured data from invoices and receipts using OCR and machine learning. Supports multiple formats and languages.',
-        category: 'Document Processing',
+        category: 'data_enrichment',
         version: '1.0.2',
         author: 'Bob Martinez',
         pricing: {
@@ -784,7 +784,7 @@ async function main() {
       manifest: {
         name: 'Spam Detector Pro',
         description: 'Machine learning-based spam detection for emails and messages with real-time threat analysis.',
-        category: 'Security',
+        category: 'monitoring',
         version: '0.9.0',
         author: 'Charlie Kim',
         pricing: {
