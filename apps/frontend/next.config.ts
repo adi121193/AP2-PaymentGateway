@@ -26,9 +26,19 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   compress: true,
 
+  // Proxy API requests to backend (for Replit multi-port setup)
+  async rewrites() {
+    return [
+      {
+        source: '/api/:path*',
+        destination: 'http://localhost:3001/:path*',
+      },
+    ];
+  },
+
   // Environment variables
   env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || '/api',
   },
 };
 
