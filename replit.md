@@ -73,8 +73,24 @@ Deployment is configured as a VM with:
 - Payment processing via Cashfree (and optionally Stripe)
 
 ## Recent Changes
+- **2025-10-27**: Marketplace fully operational with 10 demo agents
+  - Fixed agent status migration: Changed 'approved' to 'active' throughout seed data
+  - Updated API client default filter to match 'active' status (was 'approved')
+  - Enhanced execution endpoint to return payment information (amount, currency, payment URL)
+  - Verified complete execution flow: marketplace → agent selection → execution → payment
+  - All 10 agents now visible in marketplace with correct pricing ($10-$25), categories, and ratings
+
 - **2025-10-26**: Migrated from Vercel to Replit
   - Updated port configurations (frontend: 5000, API: 3001)
   - Configured Replit workflows for concurrent API + frontend execution
   - Set up Replit Secrets for API keys
   - Synced database schema with Prisma
+
+## Demo Agents Available
+The marketplace features 10 production-ready demo agents across multiple categories:
+- **Automation**: Smart Image Optimizer, Workflow Automator
+- **Data Enrichment**: Data Enrichment Agent, Company Intel Finder
+- **Analytics**: Sentiment Analyzer, Report Generator
+- **Outreach**: Email Outreach Engine, Social Media Manager
+- **Content Generation**: Content Creator Pro
+- **Research**: Research Assistant
