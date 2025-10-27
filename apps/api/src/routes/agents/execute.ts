@@ -192,6 +192,23 @@ router.post("/:id/execute", idempotency, async (req: Request, res: Response): Pr
       "Agent execution initiated"
     );
 
+    // Check if payment is required
+    const pricing = manifest.pricing;
+    let payment_required = false;
+    let payment_amount = 0;
+    let payment_currency = 'USD';
+    let payment_url: string | undefined;
+
+    if (pricing && pricing.model !== 'free') {
+      payment_required = true;
+      payment_amount = pricing.amount || pricing.price_per_execution || 0;
+      payment_currency = pricing.currency || 'USD';
+      
+      // In production, this would create a Cashfree payment session
+      // For demo purposes, we'll generate a mock payment URL
+      payment_url = `${process.env.FRONTEND_URL || 'http://localhost:5000'}/payment/${execution.id}?amount=${payment_amount}&currency=${payment_currency}`;
+    }
+
     res.status(202).json({
       success: true,
       data: {
@@ -200,6 +217,15 @@ router.post("/:id/execute", idempotency, async (req: Request, res: Response): Pr
         agent_id: agentId,
         version: agentVersion.version,
         created_at: execution.created_at.toISOString(),
+        payment_required,
+        ...(payment_required && {
+          payment: {
+            amount: payment_amount,
+            currency: payment_currency,
+            payment_url,
+            message: `Payment of ${payment_currency} ${payment_amount.toFixed(2)} required to execute this agent`,
+          },
+        }),
       },
     });
   } catch (error) {

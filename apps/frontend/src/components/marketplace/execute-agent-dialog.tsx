@@ -50,12 +50,22 @@ export function ExecuteAgentDialog({ agent, open, onOpenChange }: ExecuteAgentDi
     mutationFn: (inputs: Record<string, unknown>) => {
       return apiClient.executeAgent(agent.id, { inputs });
     },
-    onSuccess: (execution) => {
+    onSuccess: (execution: any) => {
       setExecutionId(execution.id);
-      toast({
-        title: 'Execution Started',
-        description: `Agent execution ${execution.id} has been queued`,
-      });
+      
+      // Check if payment is required (API client converts to camelCase)
+      if (execution.paymentRequired && execution.payment) {
+        toast({
+          title: 'Payment Required',
+          description: execution.payment.message,
+          duration: 6000,
+        });
+      } else {
+        toast({
+          title: 'Execution Started',
+          description: `Agent execution ${execution.id} has been queued`,
+        });
+      }
       reset();
     },
     onError: (error) => {

@@ -138,7 +138,7 @@ class ApiClient {
         sort: params?.sort,
         limit: params?.limit || 20,
         offset: params?.offset || 0,
-        status: params?.status || 'approved',
+        status: params?.status || 'active',
       },
     });
 
