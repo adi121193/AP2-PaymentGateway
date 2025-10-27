@@ -19,9 +19,9 @@ interface AgentCardProps {
 
 export function AgentCard({ agent }: AgentCardProps) {
   const { manifest } = agent;
-  const categoryInfo = CATEGORY_INFO[manifest.category];
-  const runtimeInfo = RUNTIME_LANGUAGE_INFO[manifest.runtime.language];
-  const pricingLabel = PRICING_MODEL_LABELS[manifest.pricing.model];
+  const categoryInfo = CATEGORY_INFO[manifest.category] || CATEGORY_INFO.other;
+  const runtimeInfo = RUNTIME_LANGUAGE_INFO[manifest.runtime.language] || RUNTIME_LANGUAGE_INFO.nodejs;
+  const pricingLabel = PRICING_MODEL_LABELS[manifest.pricing.model] || 'Custom';
 
   return (
     <Card className="flex flex-col h-full hover:shadow-lg transition-shadow">

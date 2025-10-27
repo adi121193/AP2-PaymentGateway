@@ -36,7 +36,37 @@ export function useAgents(params?: ListAgentsParams) {
   return useQuery({
     queryKey: agentKeys.list(params || {}),
     queryFn: () => apiClient.listAgents(params),
-    select: (data) => data.data,
+    select: (data) => {
+      const agents = data.data?.agents || [];
+      return {
+        items: agents.map((agent: any) => ({
+          id: agent.id,
+          manifest: {
+            name: agent.name,
+            version: agent.version,
+            description: agent.description,
+            category: agent.category,
+            tags: agent.tags || [],
+            pricing: {
+              model: agent.pricing?.model || 'per_execution',
+              amount: agent.pricing?.amount || agent.pricing?.price_per_execution || 0,
+              currency: agent.pricing?.currency || 'USD',
+            },
+            runtime: agent.runtime || { language: 'nodejs' },
+            icon_url: agent.icon_url,
+          },
+          author: agent.author,
+          downloads: agent.downloads || 0,
+          rating: agent.rating || 0,
+          status: agent.status,
+          created_at: agent.created_at,
+          updated_at: agent.updated_at,
+        })),
+        total: data.data?.total || 0,
+        limit: data.data?.limit || 20,
+        offset: data.data?.offset || 0,
+      };
+    },
   });
 }
 
