@@ -612,7 +612,7 @@ async function main() {
     data: {
       id: 'agt_mkt_001',
       developer_id: dev1.id,
-      status: 'approved',
+      status: 'active',
       downloads: 1247,
       rating: 4.8,
       code_url: 'https://storage.example.com/agents/data-enrichment-v1.zip',
@@ -653,7 +653,7 @@ async function main() {
     data: {
       id: 'agt_mkt_002',
       developer_id: dev1.id,
-      status: 'approved',
+      status: 'active',
       downloads: 856,
       rating: 4.6,
       code_url: 'https://storage.example.com/agents/sentiment-analyzer-v2.zip',
@@ -694,7 +694,7 @@ async function main() {
     data: {
       id: 'agt_mkt_003',
       developer_id: dev2.id,
-      status: 'approved',
+      status: 'active',
       downloads: 2103,
       rating: 4.9,
       code_url: 'https://storage.example.com/agents/image-optimizer-v1.zip',
@@ -736,7 +736,7 @@ async function main() {
     data: {
       id: 'agt_mkt_004',
       developer_id: dev2.id,
-      status: 'approved',
+      status: 'active',
       downloads: 445,
       rating: 4.3,
       code_url: 'https://storage.example.com/agents/invoice-extractor-v1.zip',
@@ -818,7 +818,7 @@ async function main() {
     data: {
       id: 'agt_mkt_006',
       developer_id: dev1.id,
-      status: 'approved',
+      status: 'active',
       downloads: 342,
       rating: 4.5,
       code_url: 'https://storage.example.com/agents/cashfree-microcharge-v1.zip',
@@ -860,7 +860,7 @@ async function main() {
     data: {
       id: 'agt_mkt_007',
       developer_id: dev2.id,
-      status: 'approved',
+      status: 'active',
       downloads: 478,
       rating: 4.7,
       code_url: 'https://storage.example.com/agents/gst-reconciler-v1.zip',
@@ -902,7 +902,7 @@ async function main() {
     data: {
       id: 'agt_mkt_008',
       developer_id: dev1.id,
-      status: 'approved',
+      status: 'active',
       downloads: 201,
       rating: 4.8,
       code_url: 'https://storage.example.com/agents/dispute-concierge-v1.zip',
@@ -944,7 +944,7 @@ async function main() {
     data: {
       id: 'agt_mkt_009',
       developer_id: dev2.id,
-      status: 'approved',
+      status: 'active',
       downloads: 267,
       rating: 4.6,
       code_url: 'https://storage.example.com/agents/fraud-signal-mesh-v1.zip',
@@ -986,7 +986,7 @@ async function main() {
     data: {
       id: 'agt_mkt_010',
       developer_id: dev1.id,
-      status: 'approved',
+      status: 'active',
       downloads: 389,
       rating: 4.4,
       code_url: 'https://storage.example.com/agents/creative-assets-v1.zip',
@@ -1028,7 +1028,7 @@ async function main() {
     data: {
       id: 'agt_mkt_011',
       developer_id: dev2.id,
-      status: 'approved',
+      status: 'active',
       downloads: 423,
       rating: 4.9,
       code_url: 'https://storage.example.com/agents/compliance-notary-v1.zip',
