@@ -71,24 +71,26 @@ export function ExecuteAgentDialog({ agent, open, onOpenChange }: ExecuteAgentDi
     // Parse JSON fields for array and object types
     const processedInputs: Record<string, unknown> = {};
 
-    agent.manifest.inputs.forEach((input) => {
-      const value = data[input.name];
+    if (agent.manifest?.inputs) {
+      agent.manifest.inputs.forEach((input) => {
+        const value = data[input.name];
 
-      if (input.type === 'array' || input.type === 'object') {
-        try {
-          processedInputs[input.name] = JSON.parse(String(value));
-        } catch {
-          // Validation should have caught this, but fallback to string
+        if (input.type === 'array' || input.type === 'object') {
+          try {
+            processedInputs[input.name] = JSON.parse(String(value));
+          } catch {
+            // Validation should have caught this, but fallback to string
+            processedInputs[input.name] = value;
+          }
+        } else if (input.type === 'number') {
+          processedInputs[input.name] = Number(value);
+        } else if (input.type === 'boolean') {
+          processedInputs[input.name] = Boolean(value);
+        } else {
           processedInputs[input.name] = value;
         }
-      } else if (input.type === 'number') {
-        processedInputs[input.name] = Number(value);
-      } else if (input.type === 'boolean') {
-        processedInputs[input.name] = Boolean(value);
-      } else {
-        processedInputs[input.name] = value;
-      }
-    });
+      });
+    }
 
     executeMutation.mutate(processedInputs);
   };
