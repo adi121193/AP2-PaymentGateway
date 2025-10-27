@@ -169,7 +169,7 @@ export function ExecuteAgentDialog({ agent, open, onOpenChange }: ExecuteAgentDi
                 ) : (
                   <span>
                     {agent.manifest.pricing.currency}{' '}
-                    {(agent.manifest.pricing.amount / 100).toFixed(2)}
+                    {(agent.manifest.pricing.amount || agent.manifest.pricing.price_per_execution || 0).toFixed(2)}
                   </span>
                 )}
               </p>

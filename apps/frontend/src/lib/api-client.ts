@@ -168,9 +168,17 @@ class ApiClient {
    * POST /agents/:id/execute
    */
   async executeAgent(agentId: string, request: ExecuteAgentRequest): Promise<AgentExecution> {
+    // Generate idempotency key for mutation request
+    const idempotencyKey = `exec_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+    
     const response = await this.client.post<ApiResponse<AgentExecution>>(
       `/agents/${agentId}/execute`,
-      request
+      request,
+      {
+        headers: {
+          'Idempotency-Key': idempotencyKey,
+        },
+      }
     );
 
     if (!response.data.success || !response.data.data) {
