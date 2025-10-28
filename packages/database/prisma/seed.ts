@@ -61,6 +61,10 @@ function signMandate(intentId: string, policyId: string, expiresAt: Date, privat
 async function clearDatabase() {
   console.log('🗑️  Clearing existing data...');
 
+  // Clear wallet tables
+  await prisma.walletTransaction.deleteMany();
+  await prisma.wallet.deleteMany();
+  
   // Clear marketplace economy tables
   await prisma.agentExecution.deleteMany();
   await prisma.agentDeployment.deleteMany();
@@ -68,6 +72,7 @@ async function clearDatabase() {
   await prisma.agentDefinition.deleteMany();
   await prisma.developerRevenue.deleteMany();
   await prisma.developer.deleteMany();
+  await prisma.user.deleteMany();
 
   // Clear payment gateway tables
   await prisma.receipt.deleteMany();
@@ -602,6 +607,74 @@ async function main() {
   console.log(`   - Alice Thompson (verified, Stripe connected)`);
   console.log(`   - Bob Martinez (verified, Stripe connected)`);
   console.log(`   - Charlie Kim (not verified)\n`);
+
+  // =========================================================================
+  // 9.5. CREATE DEMO USERS AND WALLETS
+  // =========================================================================
+  console.log('👤 Creating demo users...');
+
+  const user1 = await prisma.user.create({
+    data: {
+      id: 'user_demo_001',
+      email: 'demo@example.com',
+      name: 'Demo User',
+      verified: true,
+    },
+  });
+
+  const user2 = await prisma.user.create({
+    data: {
+      id: 'user_demo_002',
+      email: 'testuser@example.com',
+      name: 'Test User',
+      verified: true,
+    },
+  });
+
+  console.log(`✅ Created 2 users\n`);
+  
+  console.log('💰 Creating wallets...');
+  
+  // Create wallet for user 1 with balance
+  const userWallet1 = await prisma.wallet.create({
+    data: {
+      owner_type: 'USER',
+      owner_id: user1.id,
+      available_balance: 5000, // $50.00
+      pending_balance: 0,
+      currency: 'USD',
+      status: 'ACTIVE',
+    },
+  });
+
+  // Create wallet for developer 1 with earnings
+  const devWallet1 = await prisma.wallet.create({
+    data: {
+      owner_type: 'DEVELOPER',
+      owner_id: dev1.id,
+      available_balance: 15000, // $150.00
+      pending_balance: 0,
+      currency: 'USD',
+      status: 'ACTIVE',
+    },
+  });
+
+  // Create wallet for developer 2
+  const devWallet2 = await prisma.wallet.create({
+    data: {
+      owner_type: 'DEVELOPER',
+      owner_id: dev2.id,
+      available_balance: 8500, // $85.00
+      pending_balance: 0,
+      currency: 'USD',
+      status: 'ACTIVE',
+    },
+  });
+
+  console.log(`✅ Created 3 wallets`);
+  console.log(`   - User demo wallet: $50.00`);
+  console.log(`   - Developer Alice wallet: $150.00`);
+  console.log(`   - Developer Bob wallet: $85.00\n`);
 
   // =========================================================================
   // 10. CREATE AGENT DEFINITIONS (5 marketplace agents)
