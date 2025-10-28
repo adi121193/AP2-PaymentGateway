@@ -12,6 +12,8 @@ import { logger } from "../../logger.js";
 import { idempotency } from "../../middleware/idempotency.js";
 import { getExecutor } from "@ap2/agent-runtime/executor";
 import { getStorageService } from "../../services/agent-storage.js";
+import { WalletService } from "../../services/wallet/wallet.service.js";
+import { TransactionService } from "../../services/wallet/transaction.service.js";
 
 const router = Router();
 
@@ -22,6 +24,8 @@ const ExecuteAgentRequestSchema = z.object({
   deployment_id: z.string().optional(), // If user has deployed agent
   inputs: z.record(z.unknown()),
   version: z.string().optional(), // Specific version, defaults to latest
+  payment_method: z.enum(['wallet', 'cashfree']).optional(), // Payment method
+  user_id: z.string().optional(), // User ID for wallet payments (TODO: get from auth)
 });
 
 /**
@@ -68,7 +72,7 @@ router.post("/:id/execute", idempotency, async (req: Request, res: Response): Pr
       return;
     }
 
-    const { inputs, version, deployment_id } = bodyValidation.data;
+    const { inputs, version, deployment_id, payment_method, user_id } = bodyValidation.data;
 
     // Fetch agent
     const agent = await prisma.agentDefinition.findUnique({
@@ -161,19 +165,108 @@ router.post("/:id/execute", idempotency, async (req: Request, res: Response): Pr
       deploymentId = deployment.id;
     }
 
-    // Create execution record
+    // Check if payment is required
+    const pricing = manifest.pricing;
+    let payment_required = false;
+    let payment_amount = 0;
+    let payment_currency = 'USD';
+    let payment_url: string | undefined;
+    let wallet_transaction_id: string | undefined;
+
+    if (pricing && pricing.model !== 'free') {
+      payment_required = true;
+      payment_amount = pricing.amount || pricing.price_per_execution || 0;
+      payment_currency = pricing.currency || 'USD';
+    }
+
+    // Handle wallet payment if selected
+    if (payment_required && payment_method === 'wallet') {
+      const effectiveUserId = user_id || 'user_demo_001';
+      
+      // Check user wallet balance
+      const walletService = new WalletService();
+      const userWallet = await walletService.getWallet('USER', effectiveUserId);
+      
+      if (!userWallet) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'WALLET_NOT_FOUND',
+            message: 'User wallet not found. Please create a wallet first.',
+          },
+        });
+        return;
+      }
+
+      // Convert amount to cents for storage
+      const amountInCents = Math.round(payment_amount * 100);
+      
+      // Check if user has sufficient balance
+      if (userWallet.available_balance < amountInCents) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'INSUFFICIENT_BALANCE',
+            message: `Insufficient wallet balance. Required: $${payment_amount.toFixed(2)}, Available: $${(userWallet.available_balance / 100).toFixed(2)}`,
+            details: {
+              required: payment_amount,
+              available: userWallet.available_balance / 100,
+            },
+          },
+        });
+        return;
+      }
+
+      // Reserve funds from user wallet (create PENDING transaction)
+      const transactionService = new TransactionService();
+      const userTransaction = await transactionService.createTransaction({
+        wallet_id: userWallet.id,
+        type: 'EXECUTION_CHARGE',
+        amount: -amountInCents, // Negative for deduction
+        currency: payment_currency,
+        status: 'PENDING',
+        description: `Payment for agent execution: ${manifest.name}`,
+        metadata: {
+          agent_id: agentId,
+          agent_name: manifest.name,
+        },
+      });
+
+      wallet_transaction_id = userTransaction.id;
+      
+      logger.info(
+        {
+          userId: effectiveUserId,
+          walletId: userWallet.id,
+          transactionId: userTransaction.id,
+          amount: amountInCents,
+        },
+        'Wallet funds reserved for agent execution'
+      );
+    } else if (payment_required && payment_method === 'cashfree') {
+      // In production, this would create a Cashfree payment session
+      // For demo purposes, we'll generate a mock payment URL
+      payment_url = `${process.env.FRONTEND_URL || 'http://localhost:5000'}/payment?amount=${payment_amount}&currency=${payment_currency}`;
+    }
+
+    // Create execution record with wallet transaction link
     const execution = await prisma.agentExecution.create({
       data: {
         agent_id: agentId,
         deployment_id: deploymentId,
         inputs: inputs as any,
         status: "pending",
+        metadata: wallet_transaction_id ? {
+          wallet_transaction_id,
+          payment_method: 'wallet',
+        } : undefined,
       },
     });
 
     // Execute agent asynchronously
     executeAgentAsync(execution.id, {
       agentId,
+      developerId: agent.developer_id,
       version: agentVersion.version,
       codeUrl: agentVersion.code_url,
       inputs,
@@ -181,6 +274,11 @@ router.post("/:id/execute", idempotency, async (req: Request, res: Response): Pr
       memory_mb: manifest.runtime?.memory_mb || 512,
       cpu_cores: manifest.runtime?.cpu_cores || 1,
       runtime: manifest.runtime,
+      pricing: {
+        amount: payment_amount,
+        currency: payment_currency,
+      },
+      wallet_transaction_id,
     });
 
     logger.info(
@@ -188,26 +286,10 @@ router.post("/:id/execute", idempotency, async (req: Request, res: Response): Pr
         executionId: execution.id,
         agentId,
         version: agentVersion.version,
+        paymentMethod: payment_method,
       },
       "Agent execution initiated"
     );
-
-    // Check if payment is required
-    const pricing = manifest.pricing;
-    let payment_required = false;
-    let payment_amount = 0;
-    let payment_currency = 'USD';
-    let payment_url: string | undefined;
-
-    if (pricing && pricing.model !== 'free') {
-      payment_required = true;
-      payment_amount = pricing.amount || pricing.price_per_execution || 0;
-      payment_currency = pricing.currency || 'USD';
-      
-      // In production, this would create a Cashfree payment session
-      // For demo purposes, we'll generate a mock payment URL
-      payment_url = `${process.env.FRONTEND_URL || 'http://localhost:5000'}/payment/${execution.id}?amount=${payment_amount}&currency=${payment_currency}`;
-    }
 
     res.status(202).json({
       success: true,
@@ -359,17 +441,37 @@ async function executeAgentAsync(executionId: string, config: any): Promise<void
       },
     });
 
+    // Handle wallet payment settlement if wallet was used
+    if (result.success && config.wallet_transaction_id && config.developerId && config.pricing) {
+      await settleWalletPayment(
+        config.wallet_transaction_id,
+        config.developerId,
+        config.pricing.amount,
+        config.pricing.currency,
+        config.agentId
+      );
+    } else if (!result.success && config.wallet_transaction_id) {
+      // Reverse user transaction on failure
+      await reverseWalletPayment(config.wallet_transaction_id);
+    }
+
     logger.info(
       {
         executionId,
         agentId: config.agentId,
         success: result.success,
         duration_ms: result.duration_ms,
+        walletSettled: !!config.wallet_transaction_id,
       },
       "Agent execution completed"
     );
   } catch (error) {
     logger.error({ error, executionId }, "Agent execution failed");
+
+    // Reverse wallet transaction on error
+    if (config.wallet_transaction_id) {
+      await reverseWalletPayment(config.wallet_transaction_id);
+    }
 
     await prisma.agentExecution.update({
       where: { id: executionId },
@@ -379,6 +481,78 @@ async function executeAgentAsync(executionId: string, config: any): Promise<void
         completed_at: new Date(),
       },
     });
+  }
+}
+
+/**
+ * Settle wallet payment after successful execution
+ */
+async function settleWalletPayment(
+  userTransactionId: string,
+  developerId: string,
+  amount: number,
+  currency: string,
+  agentId: string
+): Promise<void> {
+  try {
+    const transactionService = new TransactionService();
+    const walletService = new WalletService();
+
+    // Complete user transaction (PENDING -> COMPLETED)
+    await transactionService.updateTransactionStatus(userTransactionId, 'COMPLETED');
+
+    // Get developer wallet
+    const developerWallet = await walletService.getWallet('DEVELOPER', developerId);
+    
+    if (developerWallet) {
+      // Create and complete developer earning transaction
+      const amountInCents = Math.round(amount * 100);
+      await transactionService.createTransaction({
+        wallet_id: developerWallet.id,
+        type: 'EXECUTION_EARNING',
+        amount: amountInCents, // Positive for credit
+        currency,
+        status: 'COMPLETED',
+        description: `Earnings from agent execution`,
+        metadata: {
+          agent_id: agentId,
+          user_transaction_id: userTransactionId,
+        },
+      });
+
+      logger.info(
+        {
+          userTransactionId,
+          developerId,
+          amount: amountInCents,
+        },
+        'Wallet payment settled'
+      );
+    } else {
+      logger.warn(
+        { developerId },
+        'Developer wallet not found, payment settled for user only'
+      );
+    }
+  } catch (error) {
+    logger.error({ error, userTransactionId }, 'Failed to settle wallet payment');
+  }
+}
+
+/**
+ * Reverse wallet payment on execution failure
+ */
+async function reverseWalletPayment(userTransactionId: string): Promise<void> {
+  try {
+    const transactionService = new TransactionService();
+    await transactionService.updateTransactionStatus(userTransactionId, 'FAILED');
+    
+    logger.info(
+      { userTransactionId },
+      'Wallet payment reversed due to execution failure'
+    );
+  } catch (error) {
+    logger.error({ error, userTransactionId }, 'Failed to reverse wallet payment');
   }
 }
 
