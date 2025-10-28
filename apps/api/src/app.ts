@@ -7,6 +7,7 @@ import { executeRouter } from "./routes/execute.js";
 import { receiptsRouter } from "./routes/receipts.js";
 import { webhooksRouter } from "./routes/webhooks/index.js";
 import { agentsRouter } from "./routes/agents/index.js";
+import walletRouter from "./routes/wallet/index.js";
 import { logger, logRequest } from "./logger.js";
 import type { Env } from "@ap2/domain";
 
@@ -81,6 +82,7 @@ export function createApp(env: Env): express.Application {
   app.use("/execute", executeRouter);
   app.use("/receipts", receiptsRouter);
   app.use("/agents", agentsRouter);
+  app.use("/wallet", walletRouter);
 
   // 404 handler for unknown routes
   app.use((req: Request, res: Response) => {

@@ -104,9 +104,10 @@ model Payment {
   created_at   DateTime  @default(now())
   updated_at   DateTime  @updatedAt
 
-  mandate   Mandate         @relation(fields: [mandate_id], references: [id], onDelete: Restrict)
-  receipt   Receipt?
-  execution AgentExecution?
+  mandate      Mandate             @relation(fields: [mandate_id], references: [id], onDelete: Restrict)
+  receipt      Receipt?
+  execution    AgentExecution?
+  transactions WalletTransaction[]
 
   @@index([mandate_id])
   @@index([provider, status])
@@ -254,9 +255,10 @@ model AgentExecution {
   created_at    DateTime  @default(now())
   updated_at    DateTime  @updatedAt
 
-  agent      AgentDefinition @relation(fields: [agent_id], references: [id], onDelete: Cascade)
-  deployment AgentDeployment @relation(fields: [deployment_id], references: [id], onDelete: Cascade)
-  payment    Payment?        @relation(fields: [payment_id], references: [id], onDelete: SetNull)
+  agent        AgentDefinition     @relation(fields: [agent_id], references: [id], onDelete: Cascade)
+  deployment   AgentDeployment     @relation(fields: [deployment_id], references: [id], onDelete: Cascade)
+  payment      Payment?            @relation(fields: [payment_id], references: [id], onDelete: SetNull)
+  transactions WalletTransaction[]
 
   @@index([agent_id, status])
   @@index([deployment_id])
@@ -282,4 +284,110 @@ model DeveloperRevenue {
   @@index([developer_id, paid_out])
   @@index([created_at])
   @@map("developer_revenue")
+}
+
+// ==========================================
+// WALLET & TRANSACTION SYSTEM
+// ==========================================
+
+enum OwnerType {
+  USER
+  DEVELOPER
+}
+
+enum TransactionType {
+  EXECUTION_EARNING    // Developer earns from execution
+  EXECUTION_CHARGE     // User pays for execution
+  WALLET_TOPUP         // User adds funds
+  WITHDRAWAL           // Developer withdraws funds
+  REFUND               // Execution refund
+  ADJUSTMENT           // Manual admin adjustment
+}
+
+enum TransactionDirection {
+  CREDIT
+  DEBIT
+}
+
+enum PaymentMethod {
+  WALLET
+  CASHFREE
+  STRIPE
+  MANUAL
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REVERSED
+}
+
+enum WalletStatus {
+  ACTIVE
+  SUSPENDED
+  CLOSED
+}
+
+model User {
+  id         String   @id @default(cuid())
+  email      String   @unique
+  name       String
+  verified   Boolean  @default(false)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([email])
+  @@index([verified])
+  @@map("users")
+}
+
+model Wallet {
+  id                String       @id @default(cuid())
+  owner_type        OwnerType
+  owner_id          String       // Foreign key to either User.id or Developer.id
+  available_balance Int          @default(0) // Amount available for use
+  pending_balance   Int          @default(0) // Amount held in pending transactions
+  currency          String       @default("USD")
+  status            WalletStatus @default(ACTIVE)
+  created_at        DateTime     @default(now())
+  updated_at        DateTime     @updatedAt
+
+  transactions WalletTransaction[]
+
+  @@unique([owner_type, owner_id])
+  @@index([owner_type, owner_id])
+  @@index([status])
+  @@map("wallets")
+}
+
+model WalletTransaction {
+  id                    String               @id @default(cuid())
+  wallet_id             String
+  counterparty_wallet_id String?             // For transfers between wallets
+  execution_id          String?
+  payment_id            String?
+  type                  TransactionType
+  direction             TransactionDirection
+  method                PaymentMethod
+  amount                Int                  // Transaction amount in smallest currency unit
+  fee_amount            Int                  @default(0) // Fee charged for transaction
+  currency              String               @default("USD")
+  status                TransactionStatus    @default(PENDING)
+  balance_after         Int?                 // Wallet balance after transaction
+  metadata              Json                 @default("{}")
+  idempotency_key       String?              @unique
+  created_at            DateTime             @default(now())
+  updated_at            DateTime             @updatedAt
+
+  wallet               Wallet              @relation(fields: [wallet_id], references: [id], onDelete: Cascade)
+  execution            AgentExecution?     @relation(fields: [execution_id], references: [id], onDelete: SetNull)
+  payment              Payment?            @relation(fields: [payment_id], references: [id], onDelete: SetNull)
+
+  @@index([wallet_id, status])
+  @@index([wallet_id, created_at])
+  @@index([type, status])
+  @@index([execution_id])
+  @@index([idempotency_key])
+  @@map("wallet_transactions")
 }
