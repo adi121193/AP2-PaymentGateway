@@ -184,8 +184,7 @@ router.post("/:id/execute", idempotency, async (req: Request, res: Response): Pr
       const effectiveUserId = user_id || 'user_demo_001';
       
       // Check user wallet balance
-      const walletService = new WalletService();
-      const userWallet = await walletService.getWallet('USER', effectiveUserId);
+      const userWallet = await WalletService.getWalletByOwner('USER', effectiveUserId);
       
       if (!userWallet) {
         res.status(400).json({
@@ -218,14 +217,14 @@ router.post("/:id/execute", idempotency, async (req: Request, res: Response): Pr
       }
 
       // Reserve funds from user wallet (create PENDING transaction)
-      const transactionService = new TransactionService();
-      const userTransaction = await transactionService.createTransaction({
-        wallet_id: userWallet.id,
+      const userTransaction = await TransactionService.createTransaction({
+        walletId: userWallet.id,
         type: 'EXECUTION_CHARGE',
-        amount: -amountInCents, // Negative for deduction
+        direction: 'DEBIT',
+        method: 'WALLET',
+        amount: amountInCents, // Positive amount, direction is DEBIT
         currency: payment_currency,
-        status: 'PENDING',
-        description: `Payment for agent execution: ${manifest.name}`,
+        executionId: undefined, // Will be set after execution created
         metadata: {
           agent_id: agentId,
           agent_name: manifest.name,
@@ -249,17 +248,13 @@ router.post("/:id/execute", idempotency, async (req: Request, res: Response): Pr
       payment_url = `${process.env.FRONTEND_URL || 'http://localhost:5000'}/payment?amount=${payment_amount}&currency=${payment_currency}`;
     }
 
-    // Create execution record with wallet transaction link
+    // Create execution record
     const execution = await prisma.agentExecution.create({
       data: {
         agent_id: agentId,
         deployment_id: deploymentId,
         inputs: inputs as any,
         status: "pending",
-        metadata: wallet_transaction_id ? {
-          wallet_transaction_id,
-          payment_method: 'wallet',
-        } : undefined,
       },
     });
 
@@ -495,45 +490,38 @@ async function settleWalletPayment(
   agentId: string
 ): Promise<void> {
   try {
-    const transactionService = new TransactionService();
-    const walletService = new WalletService();
-
     // Complete user transaction (PENDING -> COMPLETED)
-    await transactionService.updateTransactionStatus(userTransactionId, 'COMPLETED');
+    await TransactionService.completeTransaction(userTransactionId);
 
-    // Get developer wallet
-    const developerWallet = await walletService.getWallet('DEVELOPER', developerId);
+    // Get developer wallet (or create if doesn't exist)
+    const developerWallet = await WalletService.getOrCreateWallet('DEVELOPER', developerId);
     
-    if (developerWallet) {
-      // Create and complete developer earning transaction
-      const amountInCents = Math.round(amount * 100);
-      await transactionService.createTransaction({
-        wallet_id: developerWallet.id,
-        type: 'EXECUTION_EARNING',
-        amount: amountInCents, // Positive for credit
-        currency,
-        status: 'COMPLETED',
-        description: `Earnings from agent execution`,
-        metadata: {
-          agent_id: agentId,
-          user_transaction_id: userTransactionId,
-        },
-      });
+    // Create and complete developer earning transaction
+    const amountInCents = Math.round(amount * 100);
+    const devTransaction = await TransactionService.createTransaction({
+      walletId: developerWallet.id,
+      type: 'EXECUTION_EARNING',
+      direction: 'CREDIT',
+      method: 'WALLET',
+      amount: amountInCents,
+      currency,
+      metadata: {
+        agent_id: agentId,
+        user_transaction_id: userTransactionId,
+      },
+    });
 
-      logger.info(
-        {
-          userTransactionId,
-          developerId,
-          amount: amountInCents,
-        },
-        'Wallet payment settled'
-      );
-    } else {
-      logger.warn(
-        { developerId },
-        'Developer wallet not found, payment settled for user only'
-      );
-    }
+    // Complete developer transaction immediately
+    await TransactionService.completeTransaction(devTransaction.id);
+
+    logger.info(
+      {
+        userTransactionId,
+        developerId,
+        amount: amountInCents,
+      },
+      'Wallet payment settled'
+    );
   } catch (error) {
     logger.error({ error, userTransactionId }, 'Failed to settle wallet payment');
   }
@@ -544,8 +532,7 @@ async function settleWalletPayment(
  */
 async function reverseWalletPayment(userTransactionId: string): Promise<void> {
   try {
-    const transactionService = new TransactionService();
-    await transactionService.updateTransactionStatus(userTransactionId, 'FAILED');
+    await TransactionService.failTransaction(userTransactionId);
     
     logger.info(
       { userTransactionId },
