@@ -167,13 +167,23 @@ class ApiClient {
    * Execute an agent with inputs
    * POST /agents/:id/execute
    */
-  async executeAgent(agentId: string, request: ExecuteAgentRequest): Promise<AgentExecution> {
+  async executeAgent(
+    agentId: string, 
+    request: ExecuteAgentRequest & { 
+      paymentMethod?: 'wallet' | 'cashfree';
+      userId?: string;
+    }
+  ): Promise<AgentExecution> {
     // Generate idempotency key for mutation request
     const idempotencyKey = `exec_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
     
     const response = await this.client.post<ApiResponse<AgentExecution>>(
       `/agents/${agentId}/execute`,
-      request,
+      {
+        inputs: request.inputs,
+        payment_method: request.paymentMethod,
+        user_id: request.userId,
+      },
       {
         headers: {
           'Idempotency-Key': idempotencyKey,

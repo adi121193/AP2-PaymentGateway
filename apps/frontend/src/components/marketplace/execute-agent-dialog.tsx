@@ -20,10 +20,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { DynamicInputField } from './dynamic-input-field';
 import { apiClient } from '@/lib/api-client';
-import { Loader2, Play } from 'lucide-react';
+import { useWallet } from '@/hooks/use-wallet';
+import { Loader2, Play, Wallet, CreditCard, AlertCircle } from 'lucide-react';
 import type { AgentDefinition } from '@/lib/types';
 
 interface ExecuteAgentDialogProps {
@@ -36,6 +39,11 @@ export function ExecuteAgentDialog({ agent, open, onOpenChange }: ExecuteAgentDi
   const router = useRouter();
   const { toast } = useToast();
   const [executionId, setExecutionId] = useState<string | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<'wallet' | 'cashfree'>('wallet');
+  const userId = 'user_demo_001'; // TODO: Get from auth context
+  
+  // Fetch wallet balance
+  const { data: wallet, isLoading: walletLoading } = useWallet('USER', userId);
 
   const {
     register,
@@ -45,10 +53,23 @@ export function ExecuteAgentDialog({ agent, open, onOpenChange }: ExecuteAgentDi
     setValue,
   } = useForm<Record<string, unknown>>();
 
+  // Check if agent has pricing
+  const isFree = agent.manifest.pricing?.model === 'free';
+  const price = (agent.manifest.pricing as any)?.amount || (agent.manifest.pricing as any)?.price_per_execution || 0;
+  const currency = agent.manifest.pricing?.currency || 'USD';
+  
+  // Check if wallet has sufficient balance
+  const walletBalance = wallet ? wallet.availableBalance / 100 : 0;
+  const hasSufficientBalance = walletBalance >= price;
+
   // Execute agent mutation
   const executeMutation = useMutation({
     mutationFn: (inputs: Record<string, unknown>) => {
-      return apiClient.executeAgent(agent.id, { inputs });
+      return apiClient.executeAgent(agent.id, { 
+        inputs,
+        paymentMethod,
+        userId,
+      });
     },
     onSuccess: (execution: any) => {
       setExecutionId(execution.id);
@@ -58,7 +79,6 @@ export function ExecuteAgentDialog({ agent, open, onOpenChange }: ExecuteAgentDi
         toast({
           title: 'Payment Required',
           description: execution.payment.message,
-          duration: 6000,
         });
       } else {
         toast({
@@ -174,16 +194,85 @@ export function ExecuteAgentDialog({ agent, open, onOpenChange }: ExecuteAgentDi
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <p className="text-sm text-blue-800">
                 <strong>Cost:</strong>{' '}
-                {agent.manifest.pricing.model === 'free' ? (
+                {isFree ? (
                   <span className="text-green-600 font-semibold">FREE</span>
                 ) : (
                   <span>
-                    {agent.manifest.pricing.currency}{' '}
-                    {(agent.manifest.pricing.amount || agent.manifest.pricing.price_per_execution || 0).toFixed(2)}
+                    {currency} {price.toFixed(2)}
                   </span>
                 )}
               </p>
             </div>
+
+            {/* Payment Method Selection (only for paid agents) */}
+            {!isFree && (
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Payment Method</Label>
+                <div className="space-y-2">
+                  <label
+                    className={`flex items-center space-x-3 border rounded-lg p-3 cursor-pointer transition-colors ${
+                      paymentMethod === 'wallet' ? 'bg-blue-50 border-blue-300' : 'hover:bg-gray-50'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="wallet"
+                      checked={paymentMethod === 'wallet'}
+                      onChange={(e) => setPaymentMethod(e.target.value as 'wallet' | 'cashfree')}
+                      className="h-4 w-4"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Wallet className="h-4 w-4" />
+                          <span>Wallet Balance</span>
+                        </div>
+                        {walletLoading ? (
+                          <span className="text-sm text-gray-500">Loading...</span>
+                        ) : wallet ? (
+                          <span className={`text-sm font-semibold ${hasSufficientBalance ? 'text-green-600' : 'text-red-600'}`}>
+                            ${walletBalance.toFixed(2)}
+                          </span>
+                        ) : (
+                          <span className="text-sm text-gray-500">No wallet</span>
+                        )}
+                      </div>
+                    </div>
+                  </label>
+                  
+                  <label
+                    className={`flex items-center space-x-3 border rounded-lg p-3 cursor-pointer transition-colors ${
+                      paymentMethod === 'cashfree' ? 'bg-blue-50 border-blue-300' : 'hover:bg-gray-50'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="cashfree"
+                      checked={paymentMethod === 'cashfree'}
+                      onChange={(e) => setPaymentMethod(e.target.value as 'wallet' | 'cashfree')}
+                      className="h-4 w-4"
+                    />
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="h-4 w-4" />
+                      <span>Credit/Debit Card</span>
+                    </div>
+                  </label>
+                </div>
+
+                {/* Insufficient Balance Warning */}
+                {paymentMethod === 'wallet' && !hasSufficientBalance && wallet && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      Insufficient wallet balance. You need ${price.toFixed(2)} but have ${walletBalance.toFixed(2)}.
+                      Please top up your wallet or select a different payment method.
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            )}
 
             {/* Form Actions */}
             <DialogFooter>
@@ -195,7 +284,13 @@ export function ExecuteAgentDialog({ agent, open, onOpenChange }: ExecuteAgentDi
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={executeMutation.isPending}>
+              <Button 
+                type="submit" 
+                disabled={
+                  executeMutation.isPending || 
+                  (!isFree && paymentMethod === 'wallet' && !hasSufficientBalance)
+                }
+              >
                 {executeMutation.isPending ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
