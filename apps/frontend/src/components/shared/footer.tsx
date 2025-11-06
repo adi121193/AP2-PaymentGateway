@@ -42,7 +42,7 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/developer/dashboard" className="text-gray-600 hover:text-blue-600">
+                <Link href="/dashboard" className="text-gray-600 hover:text-blue-600">
                   Developer Portal
                 </Link>
               </li>
