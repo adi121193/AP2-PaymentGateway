@@ -73,9 +73,9 @@ export function Navbar() {
 
               {isAuthenticated && (
                 <Link
-                  href="/developer/dashboard"
+                  href="/dashboard"
                   className={`flex items-center gap-2 text-sm font-medium transition-colors hover:text-blue-600 ${
-                    pathname?.startsWith('/developer')
+                    pathname?.startsWith('/dashboard')
                       ? 'text-blue-600'
                       : 'text-gray-700'
                   }`}
@@ -108,11 +108,11 @@ export function Navbar() {
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => router.push('/developer/dashboard')}>
+                  <DropdownMenuItem onClick={() => router.push('/dashboard')}>
                     <Code2 className="mr-2 h-4 w-4" />
                     Developer Dashboard
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => router.push('/developer/profile')}>
+                  <DropdownMenuItem onClick={() => router.push('/dashboard/profile')}>
                     <User className="mr-2 h-4 w-4" />
                     Profile
                   </DropdownMenuItem>
