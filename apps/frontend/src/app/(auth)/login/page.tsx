@@ -59,7 +59,7 @@ export default function LoginPage() {
       await login(data.email, data.password);
 
       toast.success('Login successful!');
-      router.push('/developer/dashboard');
+      router.push('/dashboard');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Login failed';
       setError(message);
