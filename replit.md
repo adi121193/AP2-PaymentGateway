@@ -73,6 +73,17 @@ Deployment is configured as a VM with:
 - Payment processing via Cashfree (and optionally Stripe)
 
 ## Recent Changes
+- **2025-11-06**: Wallet payment integration complete
+  - **Frontend Payment UI**: Added payment method selection (Wallet vs. Card) in agent execution dialog
+  - **Balance Display**: Real-time wallet balance shown during payment method selection with color-coded status (green for sufficient, red for insufficient)
+  - **Insufficient Balance Warning**: Alert shown when wallet balance is too low, blocking execution until topped up or switched to card payment
+  - **Transaction Metadata**: Execution records now include wallet transaction ID for full reconciliation
+  - **Transaction History**: Wallet dashboard displays execution-related transactions with agent links
+  - **Demo Data**: Added 2 user wallets ($50 each) and 3 developer wallets ($150, $85, $100) to seed data
+  - **Transaction Types**: Support for EXECUTION_CHARGE, EXECUTION_EARNING, WALLET_TOPUP, WITHDRAWAL, REFUND, ADJUSTMENT
+  - **Transaction Lifecycle**: PENDING → COMPLETED/FAILED states with automatic reversal on execution failure
+  - **Balance Types**: Available balance (usable) + Pending balance (reserved during execution)
+
 - **2025-10-27**: Marketplace fully operational with 10 demo agents
   - Fixed agent status migration: Changed 'approved' to 'active' throughout seed data
   - Updated API client default filter to match 'active' status (was 'approved')
