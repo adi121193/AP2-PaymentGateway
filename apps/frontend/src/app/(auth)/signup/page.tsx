@@ -64,7 +64,7 @@ export default function SignupPage() {
       await signup(data.name, data.email, data.password);
 
       toast.success('Account created successfully!');
-      router.push('/developer/dashboard');
+      router.push('/dashboard');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Signup failed';
       setError(message);
